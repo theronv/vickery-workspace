@@ -388,8 +388,20 @@ let filterGroup = 'all', activeTabId = PANEL_TOOLS[0].id, panelVisible = true
 
 // ── CLERK INIT — called by script onload at bottom of page ──
 async function initClerk() {
+  // The browser bundle sets window.Clerk asynchronously via dynamic chunk imports.
+  // Wait until the instance is available before proceeding.
+  if (!window.Clerk) {
+    await new Promise((resolve, reject) => {
+      let attempts = 0
+      const check = setInterval(() => {
+        if (window.Clerk) { clearInterval(check); resolve() }
+        else if (++attempts > 100) { clearInterval(check); reject(new Error('Clerk failed to initialize')) }
+      }, 50)
+    })
+  }
+
   const clerk = window.Clerk
-  await clerk.load()
+  if (!clerk.loaded) await clerk.load()
   window._clerk = clerk
 
   if (clerk.user) {
@@ -703,7 +715,6 @@ function shortUrl(url) { try { return new URL(url).hostname } catch(e) { return 
 
 <!-- Clerk loads LAST so initClerk() is already defined when onload fires -->
 <script
-  async
   crossorigin="anonymous"
   data-clerk-publishable-key="pk_live_Y2xlcmsudmlja2VyeWRpZ2l0YWwuY29tJA"
   src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
