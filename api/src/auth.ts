@@ -1,4 +1,3 @@
-import { createClerkClient } from '@clerk/backend'
 import type { MiddlewareHandler } from 'hono'
 
 declare module 'hono' {
@@ -9,18 +8,20 @@ declare module 'hono' {
 
 export const clerkAuth: MiddlewareHandler = async (c, next) => {
   const authHeader = c.req.header('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
+  
+  // The user will set AUTH_SECRET in Vercel environment variables
+  const AUTH_SECRET = process.env.AUTH_SECRET
+
+  if (!AUTH_SECRET) {
+    console.error('AUTH_SECRET is not defined in environment variables')
+    return c.json({ error: 'Server configuration error' }, 500)
+  }
+
+  if (!authHeader?.startsWith('Bearer ') || authHeader.slice(7) !== AUTH_SECRET) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
 
-  const token = authHeader.slice(7)
-
-  try {
-    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! })
-    const payload = await clerk.verifyToken(token)
-    c.set('userId', payload.sub)
-    await next()
-  } catch {
-    return c.json({ error: 'Invalid token' }, 401)
-  }
+  // We'll use a fixed userId since this is a private personal workspace
+  c.set('userId', 'primary_user')
+  await next()
 }

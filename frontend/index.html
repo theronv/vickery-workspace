@@ -39,15 +39,18 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 .auth-logo { font-family: 'Fira Code', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--orange); }
 .auth-title { font-family: 'Cabinet Grotesk', sans-serif; font-size: 28px; font-weight: 800; color: var(--text); text-align: center; line-height: 1.2; }
 .auth-sub { font-size: 14px; color: var(--text-muted); text-align: center; }
-#clerk-sign-in { min-width: 320px; }
 
-.cl-card { background: var(--surface) !important; border: 1px solid var(--border-md) !important; border-radius: 16px !important; box-shadow: none !important; }
-.cl-headerTitle { color: var(--text) !important; font-family: 'Cabinet Grotesk', sans-serif !important; }
-.cl-headerSubtitle { color: var(--text-muted) !important; }
-.cl-socialButtonsBlockButton { background: var(--surface2) !important; border: 1px solid var(--border-md) !important; color: var(--text) !important; border-radius: 8px !important; }
-.cl-socialButtonsBlockButton:hover { border-color: var(--orange-border) !important; }
-.cl-footerAction { color: var(--text-muted) !important; }
-.cl-internal-b3fm6y { display: none !important; }
+#login-form {
+  display: flex; flex-direction: column; gap: 12px; width: 300px;
+}
+.login-input {
+  background: var(--surface); border: 1px solid var(--border-md); border-radius: 8px; padding: 12px 16px; color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s;
+}
+.login-input:focus { border-color: var(--orange); }
+.login-btn {
+  background: var(--orange); border: none; border-radius: 8px; padding: 12px; color: #fff; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+}
+.login-btn:hover { opacity: 0.9; }
 
 #app { display: none; height: 100vh; width: 100vw; }
 #app.visible { display: flex; }
@@ -212,11 +215,15 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 
 <div id="auth-screen">
   <div class="auth-logo">Vickery Digital</div>
-  <div>
+  <div style="text-align:center">
     <div class="auth-title">Workspace</div>
     <div class="auth-sub" style="margin-top:8px;">Personal studio dashboard</div>
   </div>
-  <div id="clerk-sign-in"></div>
+  <form id="login-form">
+    <input type="password" id="access-key" class="login-input" placeholder="Enter Access Key" required>
+    <button type="submit" class="login-btn">Sign In</button>
+    <div id="login-error" class="api-error" style="display:none; margin-top: 10px;">Invalid key</div>
+  </form>
 </div>
 
 <div id="app">
@@ -284,7 +291,6 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
     <div class="tools-grid">
       <a class="tool-link" href="https://vercel.com/dashboard" target="_blank"><span class="tool-icon">▲</span> Vercel</a>
       <a class="tool-link" href="https://turso.tech/app" target="_blank"><span class="tool-icon">⬡</span> Turso</a>
-      <a class="tool-link" href="https://dashboard.clerk.com" target="_blank"><span class="tool-icon">🔑</span> Clerk</a>
       <a class="tool-link" href="https://app.revenuecat.com" target="_blank"><span class="tool-icon">$</span> RevenueCat</a>
       <a class="tool-link" href="https://expo.dev" target="_blank"><span class="tool-icon">○</span> Expo EAS</a>
       <a class="tool-link" href="https://sentry.io" target="_blank"><span class="tool-icon">⚑</span> Sentry</a>
@@ -372,51 +378,60 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 
 <script>
 const API_BASE = 'https://workspace-api.vercel.app'
-const CLERK_KEY = 'pk_live_Y2xlcmsudmlja2VyeWRpZ2l0YWwuY29tJA'
 
-const PANEL_TOOLS = [
-  { id: 'nexus',     name: 'Nexus Chat',  url: 'https://the-nexus-chat.lovable.app/',  icon: '💬' },
-  { id: 'kanban',    name: 'KanbanFlow',  url: 'https://my-kanbanflow.lovable.app/',   icon: '📋' },
-  { id: 'pastewise', name: 'Pastewise',   url: 'http://pastewise.lovable.app/',         icon: '📎' },
+const DEFAULT_PANEL_APPS = [
+  { name: 'Nexus Chat',  url: 'https://the-nexus-chat.lovable.app/',  icon: '💬', group: 'Panel' },
+  { name: 'KanbanFlow',  url: 'https://my-kanbanflow.lovable.app/',   icon: '📋', group: 'Panel' },
+  { name: 'Pastewise',   url: 'http://pastewise.lovable.app/',         icon: '📎', group: 'Panel' },
 ]
 
 const EMOJIS = ['🔗','🛠','📊','📋','💬','📎','🗂','⚡','🔍','📌','🧩','🎯','📬','🔐','🌐','📡','🧪','🗒','💡','🏗','🎨','🚀']
-const GROUPS = ['My Tools','Dev','AI','Research','Business','Other']
+const GROUPS = ['My Tools','Dev','AI','Research','Business','Other','Panel']
 
-let tools = [], selectedEmoji = EMOJIS[0], addGroup = GROUPS[0]
-let filterGroup = 'all', activeTabId = PANEL_TOOLS[0].id, panelVisible = true
+let tools = [], panelTools = [], selectedEmoji = EMOJIS[0], addGroup = GROUPS[0]
+let filterGroup = 'all', activeTabId = null, panelVisible = true
 
-async function getToken() {
-  return await window._clerk.session.getToken()
+function getToken() {
+  return localStorage.getItem('workspace_access_key')
 }
 
-function showApp(user) {
+function showApp() {
   document.getElementById('auth-screen').style.display = 'none'
   document.getElementById('app').classList.add('visible')
 
-  const firstName = user.firstName || user.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'Jimmy'
-  document.getElementById('userName').textContent = firstName
-  document.getElementById('userLabel').textContent = firstName
-
-  const avatarEl = document.getElementById('userAvatar')
-  if (user.imageUrl) {
-    avatarEl.innerHTML = `<img src="${user.imageUrl}" alt="${firstName}">`
-  } else {
-    avatarEl.textContent = firstName.charAt(0).toUpperCase()
-  }
-
   tick()
   setInterval(tick, 30000)
-  buildPanelTabs()
-  buildIframeLayers()
   loadLinks()
   renderEmojis()
   renderAddTabs()
 }
 
-document.getElementById('signOutBtn').addEventListener('click', async () => {
-  await window._clerk.signOut()
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const key = document.getElementById('access-key').value.trim()
+  if (!key) return
+  
+  localStorage.setItem('workspace_access_key', key)
+  try {
+    // Attempt to load links to verify the key
+    await loadLinks()
+    showApp()
+  } catch (err) {
+    document.getElementById('login-error').style.display = 'block'
+    localStorage.removeItem('workspace_access_key')
+  }
+})
+
+document.getElementById('signOutBtn').addEventListener('click', () => {
+  localStorage.removeItem('workspace_access_key')
   window.location.reload()
+})
+
+// Check for existing session on load
+window.addEventListener('DOMContentLoaded', () => {
+  if (getToken()) {
+    showApp()
+  }
 })
 
 // ── CLOCK ──
@@ -431,7 +446,7 @@ function tick() {
 
 // ── API ──
 async function apiFetch(path, options = {}) {
-  const token = await getToken()
+  const token = getToken()
   const res = await fetch(API_BASE + path, {
     ...options,
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(options.headers||{}) },
@@ -443,13 +458,33 @@ async function apiFetch(path, options = {}) {
 async function loadLinks() {
   const grid = document.getElementById('customToolsGrid')
   const label = document.getElementById('myToolsLabel')
-  grid.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>'
-  label.style.display = 'flex'
+  if (grid) grid.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>'
+  if (label) label.style.display = 'flex'
+  
   try {
     tools = await apiFetch('/api/links')
+
+    // Auto-seed default panel apps on first use
+    if (!tools.some(t => t.group === 'Panel')) {
+      for (const d of DEFAULT_PANEL_APPS) {
+        const link = await apiFetch('/api/links', { method: 'POST', body: JSON.stringify(d) })
+        tools.push(link)
+      }
+    }
+
+    derivePanelTools()
     renderMain(); renderList(); renderFilterTabs()
+    buildPanelTabs(); buildIframeLayers()
   } catch(e) {
-    grid.innerHTML = '<div style="font-size:12px;color:var(--text-dim);grid-column:1/-1">Could not load links — check API connection.</div>'
+    if (grid) grid.innerHTML = '<div style="font-size:12px;color:var(--text-dim);grid-column:1/-1">Could not load links — check API connection.</div>'
+    throw e
+  }
+}
+
+function derivePanelTools() {
+  panelTools = tools.filter(t => t.group === 'Panel').sort((a, b) => a.position - b.position)
+  if (panelTools.length && (!activeTabId || !panelTools.find(t => t.id === activeTabId))) {
+    activeTabId = panelTools[0].id
   }
 }
 
@@ -457,26 +492,20 @@ async function loadLinks() {
 function renderMain() {
   const grid = document.getElementById('customToolsGrid')
   const label = document.getElementById('myToolsLabel')
+  if (!grid) return
   grid.innerHTML = ''
-  if (!tools.length) { label.style.display = 'none'; return }
-  label.style.display = 'flex'
-  tools.forEach(t => {
+  const mainTools = tools.filter(t => t.group !== 'Panel')
+  if (!mainTools.length) { if(label) label.style.display = 'none'; return }
+  if(label) label.style.display = 'flex'
+  mainTools.forEach(t => {
     const card = document.createElement('div')
     card.className = 'custom-tool-card'
-    const isPanelTool = PANEL_TOOLS.find(p => p.url === t.url)
     card.innerHTML = `
       <span class="tool-icon">${t.icon}</span>
       <span class="custom-tool-label">${esc(t.name)}</span>
       <div class="custom-tool-actions">
-        ${isPanelTool ? `<button class="tool-action-btn" data-panel="${isPanelTool.id}" title="Open in panel">⊞</button>` : ''}
         <a class="tool-action-btn" href="${esc(t.url)}" target="_blank" rel="noopener" title="Open in new tab">↗</a>
       </div>`
-    if (isPanelTool) {
-      card.querySelector('[data-panel]')?.addEventListener('click', () => {
-        if (!panelVisible) showPanel()
-        switchTab(isPanelTool.id)
-      })
-    }
     grid.appendChild(card)
   })
 }
@@ -484,12 +513,17 @@ function renderMain() {
 // ── PANEL ──
 function buildPanelTabs() {
   const tabsEl = document.getElementById('panelTabs')
+  if (!tabsEl) return
   tabsEl.innerHTML = ''
-  PANEL_TOOLS.forEach(t => {
+  if (!panelTools.length) {
+    tabsEl.innerHTML = '<div style="padding:10px 13px;font-size:12px;color:var(--text-dim)">No panel apps — add links with group "Panel"</div>'
+    return
+  }
+  panelTools.forEach(t => {
     const btn = document.createElement('button')
     btn.className = 'panel-tab' + (t.id === activeTabId ? ' active' : '')
     btn.dataset.id = t.id
-    btn.innerHTML = `<span>${t.icon}</span>${t.name}`
+    btn.innerHTML = `<span>${t.icon}</span>${esc(t.name)}`
     btn.addEventListener('click', () => switchTab(t.id))
     tabsEl.appendChild(btn)
   })
@@ -497,7 +531,16 @@ function buildPanelTabs() {
 
 function buildIframeLayers() {
   const body = document.getElementById('panelBody')
-  PANEL_TOOLS.forEach(t => {
+  if (!body) return
+
+  // Remove layers that no longer have a matching panel tool
+  const currentIds = new Set(panelTools.map(t => t.id))
+  body.querySelectorAll('.iframe-layer').forEach(layer => {
+    const layerId = layer.id.replace('layer-', '')
+    if (!currentIds.has(layerId)) layer.remove()
+  })
+
+  panelTools.forEach(t => {
     if (document.getElementById('layer-' + t.id)) return
     const layer = document.createElement('div')
     layer.className = 'iframe-layer' + (t.id === activeTabId ? ' active' : '')
@@ -505,11 +548,11 @@ function buildIframeLayers() {
     const loading = document.createElement('div')
     loading.className = 'iframe-loading'
     loading.id = 'loading-' + t.id
-    loading.innerHTML = `<div class="loader-ring"></div><div class="loader-label">loading ${t.name.toLowerCase()}…</div>`
+    loading.innerHTML = `<div class="loader-ring"></div><div class="loader-label">loading ${esc(t.name.toLowerCase())}…</div>`
     const errDiv = document.createElement('div')
     errDiv.className = 'iframe-error'
     errDiv.id = 'error-' + t.id
-    errDiv.innerHTML = `<div class="iframe-error-icon">⚠</div><div class="iframe-error-title">Couldn't load ${t.name}</div><div class="iframe-error-msg">The app may block embedding.<br>Try opening it directly.</div><a class="iframe-error-link" href="${t.url}" target="_blank">Open in new tab →</a>`
+    errDiv.innerHTML = `<div class="iframe-error-icon">⚠</div><div class="iframe-error-title">Couldn't load ${esc(t.name)}</div><div class="iframe-error-msg">The app may block embedding.<br>Try opening it directly.</div><a class="iframe-error-link" href="${esc(t.url)}" target="_blank">Open in new tab →</a>`
     const iframe = document.createElement('iframe')
     iframe.src = t.id === activeTabId ? t.url : ''
     iframe.dataset.src = t.url
@@ -550,20 +593,21 @@ document.getElementById('btnClosePanel').addEventListener('click', hidePanel)
 document.getElementById('openPanelBtn').addEventListener('click', showPanel)
 document.getElementById('btnReload').addEventListener('click', () => {
   const iframe = document.getElementById('iframe-' + activeTabId)
-  const tool = PANEL_TOOLS.find(t => t.id === activeTabId)
+  const tool = panelTools.find(t => t.id === activeTabId)
   if (!iframe || !tool) return
   document.getElementById('loading-' + activeTabId)?.classList.remove('hidden')
   document.getElementById('error-' + activeTabId)?.classList.remove('visible')
   iframe.src = ''; setTimeout(() => { iframe.src = tool.url }, 50)
 })
 document.getElementById('btnPopout').addEventListener('click', () => {
-  const tool = PANEL_TOOLS.find(t => t.id === activeTabId)
+  const tool = panelTools.find(t => t.id === activeTabId)
   if (tool) window.open(tool.url, '_blank')
 })
 
 ;(function() {
   const handle = document.getElementById('dragHandle')
   const panel = document.getElementById('panel')
+  if (!handle || !panel) return
   let dragging = false, startX = 0, startW = 0
   handle.addEventListener('mousedown', e => { dragging = true; startX = e.clientX; startW = panel.offsetWidth; handle.classList.add('dragging'); document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none' })
   document.addEventListener('mousemove', e => { if (!dragging) return; panel.style.width = Math.max(260, Math.min(window.innerWidth * 0.6, startW + (startX - e.clientX))) + 'px' })
@@ -573,6 +617,7 @@ document.getElementById('btnPopout').addEventListener('click', () => {
 // ── LINK MANAGER ──
 function renderList() {
   const list = document.getElementById('linksList')
+  if (!list) return
   list.innerHTML = ''
   const shown = filterGroup === 'all' ? tools : tools.filter(t => t.group === filterGroup)
   if (!shown.length) { list.innerHTML = '<div class="empty-list">No links yet.</div>'; return }
@@ -595,16 +640,16 @@ function renderList() {
   })
   list.querySelectorAll('.del').forEach(b => b.addEventListener('click', async e => {
     const id = e.currentTarget.dataset.id
-    try { await apiFetch('/api/links/' + id, { method: 'DELETE' }); tools = tools.filter(t => t.id !== id); renderMain(); renderList(); renderFilterTabs() }
+    try { const wasPanel = tools.find(t => t.id === id)?.group === 'Panel'; await apiFetch('/api/links/' + id, { method: 'DELETE' }); tools = tools.filter(t => t.id !== id); derivePanelTools(); renderMain(); renderList(); renderFilterTabs(); if (wasPanel) { buildPanelTabs(); buildIframeLayers() } }
     catch(err) { alert('Could not delete — check connection') }
   }))
   list.querySelectorAll('.up').forEach(b => b.addEventListener('click', async e => {
     const i = +e.currentTarget.dataset.i; if (i===0) return
-    ;[tools[i-1],tools[i]]=[tools[i],tools[i-1]]; renderMain(); renderList(); await batchReorder()
+    ;[tools[i-1],tools[i]]=[tools[i],tools[i-1]]; derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
   }))
   list.querySelectorAll('.dn').forEach(b => b.addEventListener('click', async e => {
     const i = +e.currentTarget.dataset.i; if (i===tools.length-1) return
-    ;[tools[i],tools[i+1]]=[tools[i+1],tools[i]]; renderMain(); renderList(); await batchReorder()
+    ;[tools[i],tools[i+1]]=[tools[i+1],tools[i]]; derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
   }))
 }
 
@@ -614,7 +659,7 @@ async function batchReorder() {
 }
 
 function renderEmojis() {
-  const p = document.getElementById('emojiPicker'); p.innerHTML = ''
+  const p = document.getElementById('emojiPicker'); if(!p) return; p.innerHTML = ''
   EMOJIS.forEach(e => {
     const b = document.createElement('button')
     b.className = 'emoji-opt'+(e===selectedEmoji?' selected':''); b.textContent = e; b.type = 'button'
@@ -623,7 +668,7 @@ function renderEmojis() {
 }
 
 function renderAddTabs() {
-  const c = document.getElementById('groupTabsAdd'); c.innerHTML = ''
+  const c = document.getElementById('groupTabsAdd'); if(!c) return; c.innerHTML = ''
   GROUPS.forEach(g => {
     const b = document.createElement('button')
     b.className = 'group-tab'+(g===addGroup?' active':''); b.textContent = g; b.type = 'button'
@@ -632,7 +677,7 @@ function renderAddTabs() {
 }
 
 function renderFilterTabs() {
-  const c = document.getElementById('groupTabsFilter'); c.innerHTML = ''
+  const c = document.getElementById('groupTabsFilter'); if(!c) return; c.innerHTML = ''
   const makeTab = (val, label) => {
     const b = document.createElement('button')
     b.className = 'group-tab'+(filterGroup===val?' active':''); b.textContent = label; b.type = 'button'
@@ -645,7 +690,8 @@ function renderFilterTabs() {
 function validateForm() {
   const url = document.getElementById('inputUrl').value.trim()
   const name = document.getElementById('inputName').value.trim()
-  document.getElementById('btnAdd').disabled = !(name && (url.startsWith('http://') || url.startsWith('https://')))
+  const btn = document.getElementById('btnAdd')
+  if (btn) btn.disabled = !(name && (url.startsWith('http://') || url.startsWith('https://')))
 }
 
 document.getElementById('inputUrl').addEventListener('input', e => {
@@ -669,7 +715,8 @@ document.getElementById('btnAdd').addEventListener('click', async () => {
   btn.textContent = 'Saving…'; btn.classList.add('saving'); btn.disabled = true; errEl.style.display = 'none'
   try {
     const link = await apiFetch('/api/links', { method: 'POST', body: JSON.stringify({ name, url, icon: selectedEmoji, group: addGroup }) })
-    tools.push(link); renderMain(); renderList(); renderFilterTabs()
+    tools.push(link); derivePanelTools(); renderMain(); renderList(); renderFilterTabs()
+    if (link.group === 'Panel') { buildPanelTabs(); buildIframeLayers() }
     document.getElementById('inputUrl').value = ''; document.getElementById('inputName').value = ''
     selectedEmoji = EMOJIS[0]; renderEmojis()
   } catch(e) { errEl.textContent = 'Could not save — check API connection'; errEl.style.display = 'block' }
@@ -687,32 +734,5 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 function shortUrl(url) { try { return new URL(url).hostname } catch(e) { return url.slice(0,28) } }
 </script>
 
-<!-- Clerk — FAPI CDN, v5 (matches clerk_js_version in Clerk dashboard config) -->
-<script
-  async
-  crossorigin="anonymous"
-  data-clerk-publishable-key="pk_live_Y2xlcmsudmlja2VyeWRpZ2l0YWwuY29tJA"
-  src="https://clerk.vickerydigital.com/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
-></script>
-<script>
-  (function waitForClerk() {
-    if (!window.Clerk) {
-      setTimeout(waitForClerk, 50);
-      return;
-    }
-    window.Clerk.load().then(function() {
-      window._clerk = window.Clerk;
-
-      if (window.Clerk.user) {
-        showApp(window.Clerk.user);
-      } else {
-        window.Clerk.mountSignIn(document.getElementById('clerk-sign-in'));
-        window.Clerk.addListener(function(payload) { if (payload.user) showApp(payload.user); });
-      }
-    });
-  })();
-</script>
-
 </body>
 </html>
-
