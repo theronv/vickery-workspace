@@ -388,7 +388,7 @@ let filterGroup = 'all', activeTabId = PANEL_TOOLS[0].id, panelVisible = true
 
 // ── CLERK INIT — called by script onload at bottom of page ──
 async function initClerk() {
-  const clerk = new window.Clerk(CLERK_KEY)
+  const clerk = window.Clerk
   await clerk.load()
   window._clerk = clerk
 
@@ -703,6 +703,9 @@ function shortUrl(url) { try { return new URL(url).hostname } catch(e) { return 
 
 <!-- Clerk loads LAST so initClerk() is already defined when onload fires -->
 <script
+  async
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_live_Y2xlcmsudmlja2VyeWRpZ2l0YWwuY29tJA"
   src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
   type="text/javascript"
   onload="initClerk()"
