@@ -547,7 +547,9 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const links = await apiFetch('/api/links')
     showApp(links)
   } catch (err) {
-    document.getElementById('login-error').style.display = 'block'
+    const errEl = document.getElementById('login-error')
+    errEl.textContent = 'Invalid key or connection error: ' + err.message
+    errEl.style.display = 'block'
     localStorage.removeItem('workspace_access_key')
   }
 })
@@ -577,6 +579,10 @@ function tick() {
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   document.getElementById('datestr').textContent = D[now.getDay()]+' · '+M[now.getMonth()]+' '+now.getDate()
   document.getElementById('tod').textContent = h<12?'morning':h<17?'afternoon':'evening'
+}
+
+function getToken() {
+  return localStorage.getItem('workspace_access_key')
 }
 
 // ── API ──
