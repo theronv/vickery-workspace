@@ -210,6 +210,39 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 .sb-divider { height: 1px; background: var(--border); margin: 0 -16px; }
 .api-error { font-size: 11px; color: var(--red); text-align: center; padding: 8px; background: rgba(239,68,68,0.08); border-radius: 6px; border: 1px solid rgba(239,68,68,0.2); }
 
+.link-row.active-panel { border-color: var(--orange-border); background: var(--orange-dim); }
+.panel-toggle-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+}
+.panel-toggle-btn.active {
+    background: var(--orange);
+    border-color: var(--orange);
+    color: #fff;
+}
+.link-edit-form {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid var(--orange-border);
+}
+.link-edit-form.open { display: flex; }
+.edit-actions { display: flex; gap: 6px; margin-top: 4px; }
+.btn-save-edit { background: var(--orange); border: none; border-radius: 4px; padding: 6px 10px; color: #fff; font-size: 11px; font-weight: 600; cursor: pointer; }
+.btn-cancel-edit { background: var(--surface3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text-muted); font-size: 11px; cursor: pointer; }
+
 .search-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .search-input-field { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; }
 .search-input-field::placeholder { color: var(--text-dim); }
@@ -532,14 +565,18 @@ function initResizableLayout() {
 
     const allPanelsData = [
         { id: 'launchpad', name: 'Launchpad', type: 'fixed', icon: '🏠' },
-        ...panelTools.map(t => ({ id: t.id, name: t.name, url: t.url, icon: t.icon, type: 'iframe' }))
+        ...tools.map(t => ({ id: t.id, name: t.name, url: t.url, icon: t.icon, type: 'iframe' }))
     ];
 
-    // Reconcile and order panels
     let currentPanelIds = new Set(allPanelsData.map(p => p.id));
-    panelLayout = panelLayout.filter(id => currentPanelIds.has(id));
-    const newPanelIds = allPanelsData.map(p => p.id).filter(id => !panelLayout.includes(id));
-    panelLayout = [...panelLayout, ...newPanelIds];
+
+    if (panelLayout.length === 0) {
+        // First time: include Launchpad + links in 'Panel' group
+        panelLayout = ['launchpad', ...tools.filter(t => t.group === 'Panel').map(t => t.id)];
+    } else {
+        panelLayout = panelLayout.filter(id => currentPanelIds.has(id));
+        if (!panelLayout.includes('launchpad')) panelLayout.unshift('launchpad');
+    }
 
     renderPanels();
 }
@@ -550,7 +587,7 @@ function renderPanels() {
     group.innerHTML = '';
 
     panelLayout.forEach(id => {
-        const data = panelTools.find(t => t.id === id) || (id === 'launchpad' ? { id: 'launchpad', name: 'Launchpad', type: 'fixed', icon: '🏠' } : null);
+        const data = tools.find(t => t.id === id) || (id === 'launchpad' ? { id: 'launchpad', name: 'Launchpad', type: 'fixed', icon: '🏠' } : null);
         if (!data) return;
 
         const panelDiv = document.createElement('div');
@@ -635,6 +672,7 @@ function removePanel(panelId) {
     panelLayout = panelLayout.filter(id => id !== panelId);
     delete panelSizes[panelId];
     renderPanels();
+    renderList(); // Update sidebar if open
     savePanelLayout();
 }
 
@@ -944,9 +982,12 @@ function renderList() {
   list.innerHTML = ''
   const shown = filterGroup === 'all' ? tools : tools.filter(t => t.group === filterGroup)
   if (!shown.length) { list.innerHTML = '<div class="empty-list">No links yet.</div>'; return }
+  
   shown.forEach((t, si) => {
+    const isActivePanel = panelLayout.includes(t.id);
+    
     const row = document.createElement('div')
-    row.className = 'link-row'
+    row.className = 'link-row' + (isActivePanel ? ' active-panel' : '')
     row.innerHTML = `
       <span class="link-row-icon">${faviconImgTag(t.url, t.icon, 'link-row-favicon')}</span>
       <div class="link-row-info">
@@ -954,12 +995,113 @@ function renderList() {
         <div class="link-row-meta">${esc(t.group)} · ${esc(shortUrl(t.url))}</div>
       </div>
       <div class="link-row-actions">
+        <button class="panel-toggle-btn ${isActivePanel ? 'active' : ''}" data-id="${t.id}" title="${isActivePanel ? 'Remove from Workspace' : 'Pin to Workspace'}">
+          ${isActivePanel ? 'Pinned' : 'Pin'}
+        </button>
+        <button class="icon-btn edit-btn" data-id="${t.id}" title="Edit">✎</button>
         <button class="icon-btn mv up" data-si="${si}" title="Move up"${si === 0 ? ' disabled style="opacity:0.3;cursor:default"' : ''}>↑</button>
         <button class="icon-btn mv dn" data-si="${si}" title="Move down"${si === shown.length - 1 ? ' disabled style="opacity:0.3;cursor:default"' : ''}>↓</button>
         <button class="icon-btn del" data-id="${t.id}" title="Delete">✕</button>
       </div>`
+    
+    const editForm = document.createElement('div');
+    editForm.className = 'link-edit-form';
+    editForm.id = `edit-form-${t.id}`;
+    editForm.innerHTML = `
+        <div class="form-field">
+            <div class="form-label">Name</div>
+            <input class="form-input" id="edit-name-${t.id}" value="${esc(t.name)}">
+        </div>
+        <div class="form-field">
+            <div class="form-label">URL</div>
+            <input class="form-input" id="edit-url-${t.id}" value="${esc(t.url)}">
+        </div>
+        <div class="form-field">
+            <div class="form-label">Icon</div>
+            <input class="form-input" id="edit-icon-${t.id}" value="${esc(t.icon)}" maxlength="8">
+        </div>
+        <div class="form-field">
+            <div class="form-label">Section</div>
+            <select class="form-input" id="edit-group-${t.id}">
+                ${GROUPS.map(g => `<option value="${g}" ${g === t.group ? 'selected' : ''}>${g}</option>`).join('')}
+            </select>
+        </div>
+        <div class="edit-actions">
+            <button class="btn-save-edit" data-id="${t.id}">Save</button>
+            <button class="btn-cancel-edit" data-id="${t.id}">Cancel</button>
+        </div>
+    `;
+
     list.appendChild(row)
+    list.appendChild(editForm)
   })
+
+  // Panel Toggles
+  list.querySelectorAll('.panel-toggle-btn').forEach(b => b.addEventListener('click', e => {
+    const id = e.currentTarget.dataset.id;
+    if (panelLayout.includes(id)) {
+        panelLayout = panelLayout.filter(p => p !== id);
+        delete panelSizes[id];
+    } else {
+        panelLayout.push(id);
+        panelSizes[id] = 0.3; // Default width
+    }
+    renderPanels();
+    renderList();
+    savePanelLayout();
+  }));
+
+  // Edit Toggles
+  list.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', e => {
+    const id = e.currentTarget.dataset.id;
+    document.getElementById(`edit-form-${id}`).classList.toggle('open');
+  }));
+
+  list.querySelectorAll('.btn-cancel-edit').forEach(b => b.addEventListener('click', e => {
+    const id = e.currentTarget.dataset.id;
+    document.getElementById(`edit-form-${id}`).classList.remove('open');
+  }));
+
+  list.querySelectorAll('.btn-save-edit').forEach(b => b.addEventListener('click', async e => {
+    const id = e.currentTarget.dataset.id;
+    const name = document.getElementById(`edit-name-${id}`).value.trim();
+    const url = document.getElementById(`edit-url-${id}`).value.trim();
+    const icon = document.getElementById(`edit-icon-${id}`).value.trim();
+    const group = document.getElementById(`edit-group-${id}`).value;
+    if (!name || !url) return;
+
+    e.currentTarget.textContent = 'Saving...';
+    try {
+        const updated = await apiFetch(`/api/links/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name, url, icon, group })
+        });
+        const idx = tools.findIndex(t => t.id === id);
+        tools[idx] = updated;
+        
+        // If moved to Panel group and not in layout, add it
+        if (group === 'Panel' && !panelLayout.includes(id)) {
+            panelLayout.push(id);
+            panelSizes[id] = 0.3;
+        }
+        // If moved out of Panel group, remove from layout
+        if (group !== 'Panel' && panelLayout.includes(id)) {
+            panelLayout = panelLayout.filter(p => p !== id);
+            delete panelSizes[id];
+        }
+
+        derivePanelTools();
+        renderMain();
+        renderList();
+        renderFilterTabs();
+        renderPanels();
+        savePanelLayout();
+    } catch (err) {
+        alert('Failed to save link changes');
+        e.currentTarget.textContent = 'Save';
+    }
+  }));
+
   list.querySelectorAll('.del').forEach(b => b.addEventListener('click', async e => {
     const id = e.currentTarget.dataset.id
     const link = tools.find(t => t.id === id)
@@ -967,23 +1109,27 @@ function renderList() {
     try {
       await apiFetch('/api/links/' + id, { method: 'DELETE' })
       tools = tools.filter(t => t.id !== id)
+      panelLayout = panelLayout.filter(p => p !== id);
+      delete panelSizes[id];
+      
       derivePanelTools(); 
       initResizableLayout();
       renderList(); 
-      renderFilterTabs()
+      renderFilterTabs();
+      savePanelLayout();
     } catch(err) { alert('Could not delete — check connection') }
   }))
   list.querySelectorAll('.up').forEach(b => b.addEventListener('click', async e => {
     const si = +e.currentTarget.dataset.si; if (si === 0) return
     const a = tools.indexOf(shown[si - 1]), b2 = tools.indexOf(shown[si])
     ;[tools[a], tools[b2]] = [tools[b2], tools[a]]
-    derivePanelTools(); initResizableLayout(); renderList(); await batchReorder()
+    derivePanelTools(); renderList(); await batchReorder()
   }))
   list.querySelectorAll('.dn').forEach(b => b.addEventListener('click', async e => {
     const si = +e.currentTarget.dataset.si; if (si >= shown.length - 1) return
     const a = tools.indexOf(shown[si]), b2 = tools.indexOf(shown[si + 1])
     ;[tools[a], tools[b2]] = [tools[b2], tools[a]]
-    derivePanelTools(); initResizableLayout(); renderList(); await batchReorder()
+    derivePanelTools(); renderList(); await batchReorder()
   }))
 }
 
@@ -1049,7 +1195,20 @@ document.getElementById('btnAdd').addEventListener('click', async () => {
   btn.textContent = 'Saving…'; btn.classList.add('saving'); btn.disabled = true; errEl.style.display = 'none'
   try {
     const link = await apiFetch('/api/links', { method: 'POST', body: JSON.stringify({ name, url, icon: selectedEmoji, group: addGroup }) })
-    tools.push(link); derivePanelTools(); initResizableLayout(); renderList(); renderFilterTabs()
+    tools.push(link); 
+    
+    // Automatically add to layout if it's a Panel link
+    if (addGroup === 'Panel' && !panelLayout.includes(link.id)) {
+        panelLayout.push(link.id);
+        panelSizes[link.id] = 0.3;
+    }
+
+    derivePanelTools(); 
+    initResizableLayout(); // This will handle re-rendering panels and layout
+    renderList(); 
+    renderFilterTabs();
+    savePanelLayout();
+
     document.getElementById('inputUrl').value = ''; document.getElementById('inputName').value = ''
     selectedEmoji = EMOJIS[0]; renderEmojis()
   } catch(e) { errEl.textContent = 'Could not save — check API connection'; errEl.style.display = 'block' }
