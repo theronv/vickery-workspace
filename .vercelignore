@@ -1,4 +1,6 @@
 api/src
 api/drizzle.config.ts
+api/node_modules
+node_modules
 frontend
 docs

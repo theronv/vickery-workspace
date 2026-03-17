@@ -10,9 +10,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.11",
-    "@libsql/client": "^0.6.0",
-    "drizzle-orm": "^0.30.0",
     "hono": "^4.7.0",
     "zod": "^3.22.0"
   },
