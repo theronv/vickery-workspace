@@ -11,20 +11,20 @@ This is internal tooling, not a product. No RevenueCat. No acquisition docs need
 | Frontend | Vanilla HTML/CSS/JS | Single file, deployed to Cloudflare Pages |
 | API | Hono 4.7 on Vercel Edge | `/api` routes for custom link CRUD |
 | Database | Turso/libSQL + Drizzle ORM | One DB: `workspace-db` |
-| Auth | Clerk | Google Sign-In only. Two allowlisted emails. |
+| Auth | Simple access key | Shared secret via `AUTH_SECRET` env var |
 | Hosting | Cloudflare Pages | `workspace.vickerydigital.com` subdomain |
 
 ## Auth Model
-- Clerk application: `workspace` (separate instance from app portfolio)
-- Sign-in method: Google OAuth only
-- Allowlisted emails: configured in Clerk dashboard → Restrictions → Allowlist
-- JWT verified in Hono middleware on every API request
-- Frontend uses `@clerk/clerk-js` browser SDK (loaded via CDN)
+- Simple access key authentication (no third-party auth provider)
+- User enters access key on login screen, stored in `localStorage`
+- Key sent as `Bearer` token on every API request
+- API middleware (`auth.ts`) compares token against `AUTH_SECRET` env var
+- All authenticated requests use a fixed `userId` of `'primary_user'`
 
 ## Database
 - Turso DB name: `workspace-db`
 - Schema: single `custom_links` table (see schema.ts)
-- One row per saved link, scoped by `user_id` (Clerk user ID)
+- One row per saved link, scoped by `user_id` (fixed to `'primary_user'`)
 - Links sync across devices — no localStorage dependency for link storage
 
 ## Repo Structure
@@ -32,14 +32,14 @@ This is internal tooling, not a product. No RevenueCat. No acquisition docs need
 workspace-app/
 ├── CLAUDE.md              ← this file
 ├── frontend/
-│   └── index.html         ← entire frontend (Clerk SDK loaded via CDN)
+│   └── index.html         ← entire frontend (vanilla JS, no SDK)
 ├── api/
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── vercel.json
 │   └── src/
 │       ├── index.ts       ← Hono app entry
-│       ├── auth.ts        ← Clerk JWT middleware
+│       ├── auth.ts        ← access key auth middleware
 │       ├── db.ts          ← Turso client + Drizzle instance
 │       ├── schema.ts      ← Drizzle schema
 │       └── routes/
@@ -54,13 +54,11 @@ workspace-app/
 ```
 TURSO_URL=libsql://workspace-db-jimmyvickery.turso.io
 TURSO_AUTH_TOKEN=...
-CLERK_SECRET_KEY=sk_live_...
-CLERK_PUBLISHABLE_KEY=pk_live_...
+AUTH_SECRET=...          # the access key users enter to log in
 ```
 
 ### Frontend (Cloudflare Pages)
 ```
-CLERK_PUBLISHABLE_KEY=pk_live_...
 API_BASE_URL=https://workspace-api.vercel.app
 ```
 
@@ -79,10 +77,9 @@ API_BASE_URL=https://workspace-api.vercel.app
 - Custom domain: `workspace.vickerydigital.com` CNAME → Cloudflare Pages
 
 ## Adding/Removing Users
-Clerk Dashboard → your workspace app → Users → Allowlist
-Add or remove email addresses. No code change needed.
+Share the access key with authorized users. Change `AUTH_SECRET` in Vercel to rotate.
 
 ## Notes
-- Panel tools (Nexus Chat, KanbanFlow, Pastewise) are hardcoded in the frontend
-- Custom links are stored in Turso and synced per Clerk user_id
-- Wife's account gets her own link list — lists are not shared between users
+- Panel tools (Nexus Chat, KanbanFlow, Pastewise) are auto-seeded on first use
+- Custom links are stored in Turso under a fixed `primary_user` user_id
+- All users sharing the access key see the same link list

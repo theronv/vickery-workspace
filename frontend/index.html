@@ -410,11 +410,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   const key = document.getElementById('access-key').value.trim()
   if (!key) return
-  
+
   localStorage.setItem('workspace_access_key', key)
   try {
-    // Attempt to load links to verify the key
-    await loadLinks()
+    await apiFetch('/api/links')
     showApp()
   } catch (err) {
     document.getElementById('login-error').style.display = 'block'
@@ -428,9 +427,14 @@ document.getElementById('signOutBtn').addEventListener('click', () => {
 })
 
 // Check for existing session on load
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   if (getToken()) {
-    showApp()
+    try {
+      await apiFetch('/api/links')
+      showApp()
+    } catch (err) {
+      localStorage.removeItem('workspace_access_key')
+    }
   }
 })
 
