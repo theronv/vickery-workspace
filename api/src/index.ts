@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { handle } from 'hono/vercel'
-import { clerkAuth } from './auth'
+import { authMiddleware } from './auth'
 import linksRouter from './routes/links'
 
 export const config = {
@@ -21,8 +21,8 @@ app.use('/*', cors({
 
 app.get('/health', (c) => c.json({ ok: true }))
 
-app.use('/links/*', clerkAuth)
-app.use('/links', clerkAuth)
+app.use('/links/*', authMiddleware)
+app.use('/links', authMiddleware)
 app.route('/links', linksRouter)
 
 export default handle(app)

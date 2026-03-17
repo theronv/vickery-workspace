@@ -6,7 +6,7 @@ declare module 'hono' {
   }
 }
 
-export const clerkAuth: MiddlewareHandler = async (c, next) => {
+export const authMiddleware: MiddlewareHandler = async (c, next) => {
   const authHeader = c.req.header('Authorization')
   
   // The user will set AUTH_SECRET in Vercel environment variables
