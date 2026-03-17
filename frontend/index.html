@@ -9,18 +9,18 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --orange: #f97316;
-  --orange-dim: rgba(249,115,22,0.10);
-  --orange-border: rgba(249,115,22,0.35);
+  --orange: #ea580c;
+  --orange-dim: rgba(234,88,12,0.10);
+  --orange-border: rgba(234,88,12,0.35);
   --bg: #0d0f14;
   --surface: #13161d;
   --surface2: #1a1e27;
   --surface3: #1f2330;
-  --border: rgba(255,255,255,0.07);
-  --border-md: rgba(255,255,255,0.11);
+  --border: rgba(255,255,255,0.1);
+  --border-md: rgba(255,255,255,0.16);
   --text: #e8e6df;
-  --text-muted: #6b7280;
-  --text-dim: #3d4250;
+  --text-muted: #9ca3af;
+  --text-dim: #71717a;
   --green: #22c55e;
   --amber: #f59e0b;
   --red: #ef4444;
@@ -264,14 +264,16 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
     overflow: hidden;
 }
 .resizable-panel {
-    min-width: 240px;
+    min-width: 260px;
     display: flex;
+    flex: 0 0 auto; /* Added for strict width tracking */
     flex-direction: column;
     height: 100%;
     overflow: hidden;
     position: relative;
     background: var(--bg);
     border-right: 1px solid var(--border);
+    transition: none; /* Immediate tracking */
 }
 .resizable-panel:last-child { border-right: none; }
 .resizable-panel-content {
@@ -288,21 +290,84 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
     display: block;
 }
 .panel-drag-handle {
-    width: 6px;
+    width: 20px;
     cursor: ew-resize;
     position: absolute;
     top: 0;
-    right: -3px;
+    right: -10px;
     bottom: 0;
-    z-index: 20;
+    z-index: 50;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* Pill track */
+.panel-drag-handle::after {
+    content: '';
+    width: 4px;
+    height: 40px;
+    border-radius: 4px;
+    background-color: transparent;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
     opacity: 0;
-    transition: opacity 0.2s ease, background-color 0.2s ease;
 }
-.resizable-panel:not(.dragging) .panel-drag-handle:hover,
-.resizable-panel.resizing .panel-drag-handle {
+/* Grip dots */
+.panel-drag-handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    box-shadow: 0 -6px 0 var(--text-dim), 0 6px 0 var(--text-dim);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+/* Hover state */
+.resizable-panel:not(.dragging) .panel-drag-handle:hover::after {
+    background-color: var(--border);
     opacity: 1;
-    background-color: var(--orange-border);
 }
+.resizable-panel:not(.dragging) .panel-drag-handle:hover::before {
+    opacity: 0.7;
+}
+/* Active resize state */
+.resizable-panel.resizing .panel-drag-handle::after {
+    background-color: var(--orange);
+    box-shadow: 0 0 10px var(--orange-dim);
+    opacity: 1;
+}
+.resizable-panel.resizing .panel-drag-handle::before {
+    opacity: 1;
+    background: var(--orange);
+    box-shadow: 0 -6px 0 var(--orange), 0 6px 0 var(--orange);
+}
+/* Panel add/remove animation */
+.panel-animating {
+    transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1), min-width 0.3s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+body.resizing-active {
+    cursor: ew-resize !important;
+    user-select: none !important;
+}
+
+#resize-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    cursor: ew-resize;
+    display: none;
+}
+body.resizing-active #resize-overlay {
+    display: block;
+}
+
 .panel-header {
     display: flex;
     justify-content: space-between;
@@ -363,6 +428,7 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 </style>
 </head>
 <body>
+<div id="resize-overlay"></div>
 
 <div id="auth-screen">
   <div class="auth-logo">Vickery Digital</div>
@@ -375,6 +441,11 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
     <button type="submit" class="login-btn">Sign In</button>
     <div id="login-error" class="api-error" style="display:none; margin-top: 10px;">Invalid key</div>
   </form>
+</div>
+
+<div id="global-loader" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:2000; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+  <div class="loader-ring" style="width:40px; height:40px;"></div>
+  <div class="loader-label" style="font-size:14px;">INITIALIZING WORKSPACE...</div>
 </div>
 
 <div id="app">
@@ -447,7 +518,7 @@ let filterGroup = 'all', activeTabId = null, panelVisible = true
 // ── PANEL LAYOUT STATE ──
 let panelLayout = []; // Array of panel IDs
 let panelSizes = {}; // { id: percentage_width }
-const MIN_PANEL_WIDTH_PX = 240;
+const MIN_PANEL_WIDTH_PX = 260;
 
 function savePanelLayout() {
     localStorage.setItem('vickery_panel_layout', JSON.stringify(panelLayout));
@@ -462,6 +533,17 @@ function loadPanelLayout() {
         if (storedSizes) panelSizes = JSON.parse(storedSizes);
     } catch (e) {
         console.error("Failed to load panel layout:", e);
+    }
+}
+
+function reloadPanel(id) {
+    const iframe = document.querySelector(`#panel-${id} iframe`);
+    const loading = document.querySelector(`#panel-${id} .iframe-loading`);
+    const error = document.querySelector(`#panel-${id} .iframe-error`);
+    if (iframe) {
+        if (loading) loading.classList.remove('hidden');
+        if (error) error.classList.remove('visible');
+        iframe.src = iframe.src;
     }
 }
 
@@ -589,22 +671,28 @@ function initResizableLayout() {
     renderPanels();
 }
 
-function renderPanels() {
+function renderPanels(animateNewPanels = false) {
     const group = document.getElementById('resizable-panel-group');
     if (!group) return;
+    const existingIds = new Set(Array.from(group.querySelectorAll('.resizable-panel')).map(p => p.dataset.panelId));
     group.innerHTML = '';
 
     panelLayout.forEach(id => {
         const data = tools.find(t => t.id === id) || (id === 'launchpad' ? { id: 'launchpad', name: 'Launchpad', type: 'fixed', icon: '🏠' } : null);
         if (!data) return;
 
+        const isNew = animateNewPanels && !existingIds.has(data.id);
         const panelDiv = document.createElement('div');
         panelDiv.id = `panel-${data.id}`;
         panelDiv.className = 'resizable-panel';
         panelDiv.dataset.panelId = data.id;
 
         const currentWidth = panelSizes[data.id] || 0;
-        if (currentWidth > 0) {
+        if (isNew) {
+            panelDiv.style.width = '0px';
+            panelDiv.style.minWidth = '0';
+            panelDiv.style.overflow = 'hidden';
+        } else if (currentWidth > 0) {
             panelDiv.style.width = `${currentWidth * 100}%`;
         }
 
@@ -619,6 +707,7 @@ function renderPanels() {
                 </span>
                 <div style="display:flex;gap:4px;">
                     ${data.id !== 'launchpad' ? `
+                        <button class="panel-remove-btn" title="Reload" onclick="reloadPanel('${data.id}')">↻</button>
                         <button class="panel-remove-btn" title="Pop out" onclick="window.open('${esc(data.url)}', '_blank')">⤢</button>
                         <button class="panel-remove-btn" title="${isSticky ? 'Hide until next reload' : 'Unpin'}" data-id="${data.id}">✕</button>
                     ` : ''}
@@ -626,7 +715,20 @@ function renderPanels() {
             </div>
             <div class="resizable-panel-content">
                 ${data.id !== 'launchpad'
-                    ? `<iframe class="panel-iframe-wrapper" src="${esc(data.url)}" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-pointer-lock" loading="lazy"></iframe>`
+                    ? `
+                    <div class="iframe-loading">
+                        <div class="loader-ring"></div>
+                        <div class="loader-label">LOADING ${esc(data.name.toUpperCase())}</div>
+                    </div>
+                    <div class="iframe-error">
+                        <div class="iframe-error-icon">⚠️</div>
+                        <div class="iframe-error-title">Could not load ${esc(data.name)}</div>
+                        <div class="iframe-error-msg">This site might be blocking iframes or you have a connection issue.</div>
+                        <a href="${esc(data.url)}" target="_blank" class="iframe-error-link">Try opening in a new tab ↗</a>
+                    </div>
+                    <iframe class="panel-iframe-wrapper" src="${esc(data.url)}" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-pointer-lock" loading="lazy" 
+                        onload="this.previousElementSibling.previousElementSibling.classList.add('hidden')"
+                        onerror="this.previousElementSibling.classList.add('visible'); this.previousElementSibling.previousElementSibling.classList.add('hidden')"></iframe>`
                     : generateLaunchpadHTML()}
             </div>
             <div class="panel-drag-handle"></div>`;
@@ -649,6 +751,36 @@ function renderPanels() {
     });
 
     normalizePanelSizes();
+
+    // Animate new panels in from width 0
+    if (animateNewPanels) {
+        requestAnimationFrame(() => {
+            const allPanels = group.querySelectorAll('.resizable-panel');
+            allPanels.forEach(p => {
+                if (p.style.minWidth === '0') {
+                    p.classList.add('panel-animating');
+                    const targetWidth = panelSizes[p.dataset.panelId] || 0;
+                    p.style.width = `${targetWidth * 100}%`;
+                    p.style.minWidth = '';
+                    p.style.overflow = '';
+                    p.addEventListener('transitionend', () => {
+                        p.classList.remove('panel-animating');
+                    }, { once: true });
+                }
+            });
+            // Also animate existing panels to their new sizes
+            allPanels.forEach(p => {
+                if (p.style.minWidth !== '0') {
+                    p.classList.add('panel-animating');
+                    const targetWidth = panelSizes[p.dataset.panelId] || 0;
+                    p.style.width = `${targetWidth * 100}%`;
+                    p.addEventListener('transitionend', () => {
+                        p.classList.remove('panel-animating');
+                    }, { once: true });
+                }
+            });
+        });
+    }
 }
 
 function normalizePanelSizes() {
@@ -680,86 +812,168 @@ function updatePanelWidths() {
 
 function removePanel(panelId) {
     if (panelId === 'launchpad') return;
-    panelLayout = panelLayout.filter(id => id !== panelId);
-    delete panelSizes[panelId];
-    renderPanels();
-    renderList(); // Update sidebar if open
-    savePanelLayout();
+    const panelDiv = document.getElementById(`panel-${panelId}`);
+    if (panelDiv) {
+        // Redistribute this panel's width to remaining panels
+        const removedRatio = panelSizes[panelId] || 0;
+        panelLayout = panelLayout.filter(id => id !== panelId);
+        delete panelSizes[panelId];
+
+        // Distribute removed width proportionally to remaining panels
+        const totalRemaining = panelLayout.reduce((s, id) => s + (panelSizes[id] || 0), 0);
+        if (totalRemaining > 0) {
+            panelLayout.forEach(id => {
+                panelSizes[id] = (panelSizes[id] || 0) + removedRatio * ((panelSizes[id] || 0) / totalRemaining);
+            });
+        }
+
+        // Animate remaining panels to new widths
+        const allPanels = document.querySelectorAll('.resizable-panel');
+        allPanels.forEach(p => {
+            if (p !== panelDiv) p.classList.add('panel-animating');
+        });
+
+        // Animate removed panel to zero
+        panelDiv.classList.add('panel-animating');
+        panelDiv.style.width = '0px';
+        panelDiv.style.minWidth = '0';
+        panelDiv.style.overflow = 'hidden';
+
+        // Update remaining panel widths (they'll animate via CSS)
+        panelLayout.forEach(id => {
+            const el = document.getElementById(`panel-${id}`);
+            if (el) el.style.width = `${(panelSizes[id] || 0) * 100}%`;
+        });
+
+        let done = false;
+        const onDone = () => {
+            if (done) return;
+            done = true;
+            panelDiv.remove();
+            allPanels.forEach(p => p.classList.remove('panel-animating'));
+            renderList();
+            savePanelLayout();
+        };
+        panelDiv.addEventListener('transitionend', onDone, { once: true });
+        // Fallback if transition doesn't fire
+        setTimeout(onDone, 400);
+    } else {
+        panelLayout = panelLayout.filter(id => id !== panelId);
+        delete panelSizes[panelId];
+        renderPanels();
+        renderList();
+        savePanelLayout();
+    }
 }
 
 function addPanelResizing(panelDiv) {
     const handle = panelDiv.querySelector('.panel-drag-handle');
     if (!handle) return;
 
-    let isResizing = false;
-    let startX, startWidthRatio;
-    let prevPanelId, nextPanelId;
-    let prevPanelDiv, nextPanelDiv;
+    // Double-click to equalize adjacent panels
+    handle.ondblclick = (e) => {
+        e.preventDefault();
+        const allPanels = Array.from(document.querySelectorAll('.resizable-panel'));
+        const currentIndex = allPanels.indexOf(panelDiv);
+        const nextPanelDiv = (currentIndex < allPanels.length - 1) ? allPanels[currentIndex + 1] : null;
+        if (!nextPanelDiv) return;
+
+        const prevId = panelDiv.dataset.panelId;
+        const nextId = nextPanelDiv.dataset.panelId;
+        const combinedRatio = (panelSizes[prevId] || 0) + (panelSizes[nextId] || 0);
+        const halfRatio = combinedRatio / 2;
+
+        panelSizes[prevId] = halfRatio;
+        panelSizes[nextId] = halfRatio;
+
+        panelDiv.classList.add('panel-animating');
+        nextPanelDiv.classList.add('panel-animating');
+        panelDiv.style.width = `${halfRatio * 100}%`;
+        nextPanelDiv.style.width = `${halfRatio * 100}%`;
+
+        const cleanup = () => {
+            panelDiv.classList.remove('panel-animating');
+            nextPanelDiv.classList.remove('panel-animating');
+            savePanelLayout();
+        };
+        panelDiv.addEventListener('transitionend', cleanup, { once: true });
+    };
 
     handle.onmousedown = (e) => {
-        isResizing = true;
-        startX = e.clientX;
-        panelDiv.classList.add('resizing');
+        e.preventDefault();
+        const startX = e.clientX;
+        const group = document.getElementById('resizable-panel-group');
+        const initialTotalW = group.offsetWidth;
 
         const allPanels = Array.from(document.querySelectorAll('.resizable-panel'));
         const currentIndex = allPanels.indexOf(panelDiv);
 
-        prevPanelDiv = panelDiv;
-        prevPanelId = panelDiv.dataset.panelId;
+        const prevPanelDiv = panelDiv;
+        const prevPanelId = panelDiv.dataset.panelId;
+        const nextPanelDiv = (currentIndex < allPanels.length - 1) ? allPanels[currentIndex + 1] : null;
+        const nextPanelId = nextPanelDiv ? nextPanelDiv.dataset.panelId : null;
 
-        if (currentIndex < allPanels.length - 1) {
-            nextPanelDiv = allPanels[currentIndex + 1];
-            nextPanelId = nextPanelDiv.dataset.panelId;
-        } else {
-            nextPanelDiv = null;
-        }
+        if (!nextPanelDiv) return;
 
-        document.body.style.cursor = 'ew-resize';
-        document.body.style.userSelect = 'none';
-        
+        const initialPrevW = prevPanelDiv.offsetWidth;
+        const initialNextW = nextPanelDiv.offsetWidth;
+        const combinedW = initialPrevW + initialNextW;
+
+        const initialPrevRatio = panelSizes[prevPanelId];
+        const initialNextRatio = panelSizes[nextPanelId];
+        const combinedRatio = initialPrevRatio + initialNextRatio;
+
+        panelDiv.classList.add('resizing');
+        document.body.classList.add('resizing-active');
+
+        let pendingFrame = null;
+        let latestPrevRatio = initialPrevRatio;
+        let latestNextRatio = initialNextRatio;
+
         const onMouseMove = (moveEvent) => {
-            if (!isResizing) return;
             const dx = moveEvent.clientX - startX;
-            const group = document.getElementById('resizable-panel-group');
-            const totalW = group.offsetWidth;
 
-            if (nextPanelDiv) {
-                const combinedRatio = panelSizes[prevPanelId] + panelSizes[nextPanelId];
-                let newPrevRatio = (prevPanelDiv.offsetWidth + dx) / totalW;
-                let newNextRatio = combinedRatio - newPrevRatio;
+            let newPrevW = initialPrevW + dx;
+            let newNextW = combinedW - newPrevW;
 
-                const minRatio = MIN_PANEL_WIDTH_PX / totalW;
-                if (newPrevRatio < minRatio) {
-                    newPrevRatio = minRatio;
-                    newNextRatio = combinedRatio - minRatio;
-                }
-                if (newNextRatio < minRatio) {
-                    newNextRatio = minRatio;
-                    newPrevRatio = combinedRatio - minRatio;
-                }
+            const minW = MIN_PANEL_WIDTH_PX;
+            const maxW = Math.min(combinedW - minW, window.innerWidth * 0.6);
 
-                panelSizes[prevPanelId] = newPrevRatio;
-                panelSizes[nextPanelId] = newNextRatio;
+            if (newPrevW < minW) { newPrevW = minW; newNextW = combinedW - minW; }
+            if (newNextW < minW) { newNextW = minW; newPrevW = combinedW - minW; }
+            if (newPrevW > maxW) { newPrevW = maxW; newNextW = combinedW - maxW; }
 
-                prevPanelDiv.style.width = `${newPrevRatio * 100}%`;
-                nextPanelDiv.style.width = `${newNextRatio * 100}%`;
-                startX = moveEvent.clientX;
+            latestPrevRatio = newPrevW / initialTotalW;
+            latestNextRatio = combinedRatio - latestPrevRatio;
+
+            panelSizes[prevPanelId] = latestPrevRatio;
+            panelSizes[nextPanelId] = latestNextRatio;
+
+            if (!pendingFrame) {
+                pendingFrame = requestAnimationFrame(() => {
+                    prevPanelDiv.style.width = `${latestPrevRatio * 100}%`;
+                    nextPanelDiv.style.width = `${latestNextRatio * 100}%`;
+                    pendingFrame = null;
+                });
             }
         };
 
         const onMouseUp = () => {
-            isResizing = false;
+            if (pendingFrame) { cancelAnimationFrame(pendingFrame); pendingFrame = null; }
+            // Apply final values immediately
+            prevPanelDiv.style.width = `${latestPrevRatio * 100}%`;
+            nextPanelDiv.style.width = `${latestNextRatio * 100}%`;
+
             panelDiv.classList.remove('resizing');
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
+            document.body.classList.remove('resizing-active');
             savePanelLayout();
+            normalizePanelSizes();
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
         };
 
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
-        e.preventDefault();
     };
 }
 
@@ -839,6 +1053,11 @@ function attachLaunchpadListeners() {
     if (userBtn) userBtn.onclick = openAdmin;
 }
 
+function toggleGlobalLoader(show) {
+  const loader = document.getElementById('global-loader');
+  if (loader) loader.style.display = show ? 'flex' : 'none';
+}
+
 function getToken() {
   return localStorage.getItem('workspace_access_key')
 }
@@ -860,7 +1079,12 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   if (!key) return
 
   localStorage.setItem('workspace_access_key', key)
+  const btn = e.target.querySelector('button');
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
+
   try {
+    toggleGlobalLoader(true);
     const links = await apiFetch('/api/links')
     showApp(links)
   } catch (err) {
@@ -868,6 +1092,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     errEl.textContent = 'Invalid key or connection error: ' + err.message
     errEl.style.display = 'block'
     localStorage.removeItem('workspace_access_key')
+  } finally {
+    toggleGlobalLoader(false);
+    btn.textContent = 'Sign In';
+    btn.disabled = false;
   }
 })
 
@@ -875,10 +1103,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 window.addEventListener('DOMContentLoaded', async () => {
   if (getToken()) {
     try {
+      toggleGlobalLoader(true);
       const links = await apiFetch('/api/links')
       showApp(links)
     } catch (err) {
       localStorage.removeItem('workspace_access_key')
+    } finally {
+      toggleGlobalLoader(false);
     }
   }
 })
@@ -905,6 +1136,11 @@ async function apiFetch(path, options = {}) {
     ...options,
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(options.headers||{}) },
   })
+  if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('workspace_access_key');
+      window.location.reload();
+      throw new Error('Session expired');
+  }
   if (!res.ok) throw new Error(`API ${res.status}`)
   return res.json()
 }
@@ -927,6 +1163,7 @@ async function loadLinks(prefetched) {
     renderFilterTabs()
   } catch(e) {
     console.error("Load links failed:", e);
+    alert('Failed to load links. Workspace may be empty or unreachable.');
   }
 }
 
@@ -977,8 +1214,12 @@ function renderMain() {
 
   const mainTools = q ? allMain.filter(t => t.name.toLowerCase().includes(q) || t.group.toLowerCase().includes(q) || t.url.toLowerCase().includes(q)) : allMain
 
-  if (!mainTools.length && q) {
-    grid.innerHTML = '<div class="search-no-results">No links match your search.</div>'
+  if (!mainTools.length) {
+    if (q) {
+      grid.innerHTML = '<div class="search-no-results">No links match your search.</div>'
+    } else {
+      grid.innerHTML = '<div class="search-no-results" style="border:1px dashed var(--border); border-radius:12px; padding:32px;">You haven\'t added any tools yet. <br><span style="color:var(--orange); cursor:pointer;" onclick="openAdmin()">Open Link Manager</span> to get started.</div>'
+    }
     return
   }
   
@@ -1057,15 +1298,15 @@ function renderList() {
   list.querySelectorAll('.panel-toggle-btn').forEach(b => b.addEventListener('click', e => {
     const id = e.currentTarget.dataset.id;
     if (panelLayout.includes(id)) {
-        panelLayout = panelLayout.filter(p => p !== id);
-        delete panelSizes[id];
+        removePanel(id);
     } else {
         panelLayout.push(id);
         panelSizes[id] = 0.3; // Default width
+        normalizePanelSizes();
+        renderPanels(true);
+        renderList();
+        savePanelLayout();
     }
-    renderPanels();
-    renderList();
-    savePanelLayout();
   }));
 
   // Edit Toggles
@@ -1152,7 +1393,24 @@ function renderList() {
 
 async function batchReorder() {
   const items = tools.map((t, pos) => ({ id: t.id, position: pos }))
-  try { await apiFetch('/api/links/reorder', { method: 'PUT', body: JSON.stringify({ items }) }) } catch(e) {}
+  const btns = document.querySelectorAll('.icon-btn.mv');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.style.opacity = '0.3';
+  });
+  
+  try { 
+    await apiFetch('/api/links/reorder', { method: 'PUT', body: JSON.stringify({ items }) }) 
+  } catch(e) {
+    alert('Failed to save link order. Please check your connection.');
+  } finally {
+    // Buttons will be re-rendered by renderList() caller if needed
+    // but we should re-enable them just in case
+    btns.forEach(b => {
+      b.disabled = false;
+      b.style.opacity = '';
+    });
+  }
 }
 
 function renderEmojis() {
@@ -1204,9 +1462,21 @@ document.getElementById('inputUrl').addEventListener('input', e => {
 document.getElementById('inputName').addEventListener('input', validateForm)
 
 document.getElementById('btnAdd').addEventListener('click', async () => {
-  const url = document.getElementById('inputUrl').value.trim()
-  const name = document.getElementById('inputName').value.trim()
-  if (!url || !name) return
+  const urlEl = document.getElementById('inputUrl')
+  const nameEl = document.getElementById('inputName')
+  const url = urlEl.value.trim()
+  const name = nameEl.value.trim()
+  
+  // Clear any previous error states
+  urlEl.style.borderColor = ''
+  nameEl.style.borderColor = ''
+
+  if (!url || !name) {
+    if (!url) urlEl.style.borderColor = 'var(--red)'
+    if (!name) nameEl.style.borderColor = 'var(--red)'
+    return
+  }
+
   const btn = document.getElementById('btnAdd')
   const errEl = document.getElementById('addError')
   btn.textContent = 'Saving…'; btn.classList.add('saving'); btn.disabled = true; errEl.style.display = 'none'
