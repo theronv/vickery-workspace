@@ -439,7 +439,7 @@ const DEFAULT_PANEL_APPS = [
 ]
 
 const EMOJIS = ['🔗','🛠','📊','📋','💬','📎','🗂','⚡','🔍','📌','🧩','🎯','📬','🔐','🌐','📡','🧪','🗒','💡','🏗','🎨','🚀']
-const GROUPS = ['My Tools','Dev','AI','Research','Business','Other','Panel']
+const GROUPS = ['Apps','Dev','My Tools','AI','Research','Business','Other','Panel']
 
 let tools = [], panelTools = [], selectedEmoji = EMOJIS[0], addGroup = GROUPS[0]
 let filterGroup = 'all', activeTabId = null, panelVisible = true
@@ -467,6 +467,10 @@ function loadPanelLayout() {
 
 // ── CONTENT GENERATORS ──
 function generateLaunchpadHTML() {
+    const apps = tools.filter(t => t.group === 'Apps');
+    const dev = tools.filter(t => t.group === 'Dev');
+    const myTools = tools.filter(t => !['Apps', 'Dev', 'Panel'].includes(t.group));
+
     return `
     <div class="launchpad" id="launchpad">
         <div class="launchpad-inner">
@@ -492,6 +496,7 @@ function generateLaunchpadHTML() {
                 </div>
             </div>
 
+            ${apps.length > 0 ? `
             <div class="section-label">Your Apps</div>
             <div class="legend">
                 <div class="legend-item"><div class="legend-dot" style="background:var(--green);box-shadow:0 0 5px rgba(34,197,94,0.5)"></div>live</div>
@@ -499,53 +504,44 @@ function generateLaunchpadHTML() {
                 <div class="legend-item"><div class="legend-dot" style="background:var(--text-dim)"></div>pipeline</div>
             </div>
             <div class="apps-grid">
-                <a class="app-card" href="https://apps.apple.com" target="_blank">
+                ${apps.map(t => `
+                <a class="app-card" href="${esc(t.url)}" target="_blank">
                     <div class="status-dot status-live"></div>
-                    <div class="app-icon" style="background:rgba(249,115,22,0.12);">🧹</div>
-                    <div class="app-name">Chorify</div>
-                    <div class="app-desc">Household chore tracker. App Store.</div>
-                </a>
-                <a class="app-card" href="#" target="_blank">
-                    <div class="status-dot status-dev"></div>
-                    <div class="app-icon" style="background:rgba(59,130,246,0.12);">🎵</div>
-                    <div class="app-name">Needledrop</div>
-                    <div class="app-desc">Music app. React Native / iOS.</div>
-                </a>
-                <a class="app-card" href="#" target="_blank">
-                    <div class="status-dot status-dev"></div>
-                    <div class="app-icon" style="background:rgba(34,197,94,0.12);">📝</div>
-                    <div class="app-name">MonoLine</div>
-                    <div class="app-desc">One-line daily journal. Score 11/12.</div>
-                </a>
-                <div class="app-card placeholder">
+                    <div class="app-icon" style="background:var(--orange-dim);">${t.icon}</div>
+                    <div class="app-name">${esc(t.name)}</div>
+                    <div class="app-desc">${esc(shortUrl(t.url))}</div>
+                </a>`).join('')}
+                <div class="app-card placeholder" onclick="openAdmin()">
                     <div class="status-dot status-idea"></div>
                     <div class="app-icon" style="background:rgba(107,114,128,0.08);color:var(--text-dim);font-size:19px;font-weight:300;">+</div>
                     <div class="app-name" style="color:var(--text-muted)">Next App</div>
-                    <div class="app-desc">~50 ideas in the pipeline.</div>
+                    <div class="app-desc">Manage via Link Manager</div>
                 </div>
-            </div>
+            </div>` : ''}
 
+            ${dev.length > 0 ? `
             <div class="section-label">Dev Console</div>
             <div class="tools-grid">
-                <a class="tool-link" href="https://vercel.com/dashboard" target="_blank"><span class="tool-icon">▲</span> Vercel</a>
-                <a class="tool-link" href="https://turso.tech/app" target="_blank"><span class="tool-icon">⬡</span> Turso</a>
-                <a class="tool-link" href="https://app.revenuecat.com" target="_blank"><span class="tool-icon">$</span> RevenueCat</a>
-                <a class="tool-link" href="https://expo.dev" target="_blank"><span class="tool-icon">○</span> Expo EAS</a>
-                <a class="tool-link" href="https://sentry.io" target="_blank"><span class="tool-icon">⚑</span> Sentry</a>
-                <a class="tool-link" href="https://dash.cloudflare.com" target="_blank"><span class="tool-icon">☁</span> Cloudflare</a>
-                <a class="tool-link" href="https://github.com" target="_blank"><span class="tool-icon">⌥</span> GitHub</a>
-                <a class="tool-link" href="https://appstoreconnect.apple.com" target="_blank"><span class="tool-icon">⌘</span> App Store Connect</a>
-                <a class="tool-link" href="https://lovable.dev" target="_blank"><span class="tool-icon">🌿</span> Lovable</a>
-                <a class="tool-link" href="https://claude.ai" target="_blank"><span class="tool-icon">◆</span> Claude</a>
-                <a class="tool-link" href="https://acquire.com" target="_blank"><span class="tool-icon">↗</span> Acquire.com</a>
-            </div>
+                ${dev.map(t => `
+                <a class="tool-link" href="${esc(t.url)}" target="_blank"><span class="tool-icon">${faviconImgTag(t.url, t.icon, 'favicon-img')}</span> ${esc(t.name)}</a>
+                `).join('')}
+            </div>` : ''}
 
             <div class="section-label" id="myToolsLabel">My Tools</div>
             <div class="search-bar" id="searchBar">
                 <input type="text" id="searchInput" class="search-input-field" placeholder="Filter links…" autocomplete="off" spellcheck="false">
                 <span class="search-kbd" id="searchKbd">/</span>
             </div>
-            <div class="custom-tools-grid" id="customToolsGrid"></div>
+            <div class="custom-tools-grid" id="customToolsGrid">
+                ${myTools.map(t => `
+                <div class="custom-tool-card">
+                    <span class="tool-icon">${faviconImgTag(t.url, t.icon, 'favicon-img')}</span>
+                    <span class="custom-tool-label">${esc(t.name)}</span>
+                    <div class="custom-tool-actions">
+                        <a class="tool-action-btn" href="${esc(t.url)}" target="_blank" rel="noopener" title="Open in new tab">↗</a>
+                    </div>
+                </div>`).join('')}
+            </div>
 
             <div class="footer">
                 <div class="footer-left">vickery-digital · bothell, wa</div>
@@ -563,19 +559,31 @@ function generateLaunchpadHTML() {
 function initResizableLayout() {
     loadPanelLayout();
 
-    const allPanelsData = [
-        { id: 'launchpad', name: 'Launchpad', type: 'fixed', icon: '🏠' },
-        ...tools.map(t => ({ id: t.id, name: t.name, url: t.url, icon: t.icon, type: 'iframe' }))
-    ];
+    const allToolsMap = new Map(tools.map(t => [t.id, t]));
+    
+    // 1. Identify "Sticky" panels (those in the 'Panel' group)
+    const stickyPanelIds = tools.filter(t => t.group === 'Panel').map(t => t.id);
+    
+    // 2. Filter existing layout to only include links that still exist
+    panelLayout = panelLayout.filter(id => id === 'launchpad' || allToolsMap.has(id));
+    
+    // 3. Ensure all Sticky panels are in the layout
+    stickyPanelIds.forEach(id => {
+        if (!panelLayout.includes(id)) {
+            panelLayout.push(id);
+            if (!panelSizes[id]) panelSizes[id] = 0.3;
+        }
+    });
 
-    let currentPanelIds = new Set(allPanelsData.map(p => p.id));
-
-    if (panelLayout.length === 0) {
-        // First time: include Launchpad + links in 'Panel' group
-        panelLayout = ['launchpad', ...tools.filter(t => t.group === 'Panel').map(t => t.id)];
+    // 4. Always ensure launchpad is present and at the start
+    if (!panelLayout.includes('launchpad')) {
+        panelLayout.unshift('launchpad');
     } else {
-        panelLayout = panelLayout.filter(id => currentPanelIds.has(id));
-        if (!panelLayout.includes('launchpad')) panelLayout.unshift('launchpad');
+        const lpIdx = panelLayout.indexOf('launchpad');
+        if (lpIdx !== 0) {
+            panelLayout.splice(lpIdx, 1);
+            panelLayout.unshift('launchpad');
+        }
     }
 
     renderPanels();
@@ -600,16 +608,19 @@ function renderPanels() {
             panelDiv.style.width = `${currentWidth * 100}%`;
         }
 
+        const isSticky = data.group === 'Panel';
+
         panelDiv.innerHTML = `
             <div class="panel-header" draggable="true">
                 <span class="panel-header-title">
                     <span class="panel-icon">${faviconImgTag(data.url || '', data.icon, 'panel-tab-favicon')}</span>
                     ${esc(data.name)}
+                    ${isSticky ? '<span style="font-size:8px;opacity:0.5;margin-left:4px;">DEFAULT</span>' : ''}
                 </span>
                 <div style="display:flex;gap:4px;">
                     ${data.id !== 'launchpad' ? `
                         <button class="panel-remove-btn" title="Pop out" onclick="window.open('${esc(data.url)}', '_blank')">⤢</button>
-                        <button class="panel-remove-btn" title="Remove panel" data-id="${data.id}">✕</button>
+                        <button class="panel-remove-btn" title="${isSticky ? 'Hide until next reload' : 'Unpin'}" data-id="${data.id}">✕</button>
                     ` : ''}
                 </div>
             </div>
@@ -629,8 +640,8 @@ function renderPanels() {
             };
         } else {
             attachLaunchpadListeners();
-            renderMain();
-            tick(); // Initialize clock
+            // No need to call renderMain anymore as generateLaunchpadHTML handles it
+            tick(); 
         }
 
         addPanelDragAndDrop(panelDiv);
@@ -945,34 +956,40 @@ function renderMain() {
   const label = document.getElementById('myToolsLabel')
   const searchBar = document.getElementById('searchBar')
   if (!grid) return
-  grid.innerHTML = ''
-  const allMain = tools.filter(t => t.group !== 'Panel')
-  if (!allMain.length) {
+  
+  const q = searchQuery.toLowerCase()
+  
+  // If searching, we might want to update the entire launchpad or just the custom tools.
+  // For now, let's keep it simple and just update the custom tools grid as before,
+  // but ensure it uses the correct filtering logic.
+  
+  const allMain = tools.filter(t => !['Apps', 'Dev', 'Panel'].includes(t.group))
+  
+  if (!allMain.length && !q) {
     if (label) label.style.display = 'none'
     if (searchBar) searchBar.style.display = 'none'
+    grid.innerHTML = ''
     return
   }
+  
   if (label) label.style.display = 'flex'
   if (searchBar) searchBar.style.display = 'flex'
 
-  const q = searchQuery.toLowerCase()
   const mainTools = q ? allMain.filter(t => t.name.toLowerCase().includes(q) || t.group.toLowerCase().includes(q) || t.url.toLowerCase().includes(q)) : allMain
 
-  if (!mainTools.length) {
+  if (!mainTools.length && q) {
     grid.innerHTML = '<div class="search-no-results">No links match your search.</div>'
     return
   }
-  mainTools.forEach(t => {
-    const card = document.createElement('div')
-    card.className = 'custom-tool-card'
-    card.innerHTML = `
+  
+  grid.innerHTML = mainTools.map(t => `
+    <div class="custom-tool-card">
       <span class="tool-icon">${faviconImgTag(t.url, t.icon, 'favicon-img')}</span>
       <span class="custom-tool-label">${esc(t.name)}</span>
       <div class="custom-tool-actions">
         <a class="tool-action-btn" href="${esc(t.url)}" target="_blank" rel="noopener" title="Open in new tab">↗</a>
-      </div>`
-    grid.appendChild(card)
-  })
+      </div>
+    </div>`).join('')
 }
 
 // ── LINK MANAGER ──
