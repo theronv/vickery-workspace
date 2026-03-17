@@ -1,7 +1,7 @@
 # CLAUDE.md — Vickery Digital Workspace
 
 ## What This Is
-Personal workspace dashboard for Jimmy Vickery (Vickery Digital LLC).
+Personal workspace dashboard for Theron Vickery (Vickery Digital LLC).
 Deployed at `workspace.vickerydigital.com`. Private — two authorized users only.
 This is internal tooling, not a product. No RevenueCat. No acquisition docs needed.
 

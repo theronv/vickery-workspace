@@ -209,6 +209,17 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 .empty-list { text-align: center; padding: 20px 0; font-size: 12px; color: var(--text-dim); line-height: 1.7; }
 .sb-divider { height: 1px; background: var(--border); margin: 0 -16px; }
 .api-error { font-size: 11px; color: var(--red); text-align: center; padding: 8px; background: rgba(239,68,68,0.08); border-radius: 6px; border: 1px solid rgba(239,68,68,0.2); }
+
+.search-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.search-input-field { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; }
+.search-input-field::placeholder { color: var(--text-dim); }
+.search-input-field:focus { border-color: var(--orange-border); }
+.search-kbd { font-family: 'Fira Code', monospace; font-size: 10px; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; flex-shrink: 0; pointer-events: none; }
+.search-no-results { font-size: 12px; color: var(--text-dim); text-align: center; padding: 14px 0; }
+
+.favicon-img { width: 14px; height: 14px; border-radius: 2px; vertical-align: middle; }
+.link-row-favicon { width: 14px; height: 14px; border-radius: 2px; vertical-align: middle; }
+.panel-tab-favicon { width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -235,7 +246,7 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
     <div class="header">
       <div class="header-left">
         <div class="wordmark">Vickery Digital</div>
-        <div class="greeting">Good <span id="tod">morning</span>, <span id="userName">Jimmy</span>.</div>
+        <div class="greeting">Good <span id="tod">morning</span>, <span id="userName">Theron</span>.</div>
       </div>
       <div class="header-right">
         <div class="time-block">
@@ -244,8 +255,8 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
         </div>
         <div>
           <button class="user-btn" id="userBtn">
-            <div class="user-avatar" id="userAvatar">J</div>
-            <span class="user-name" id="userLabel">Jimmy</span>
+            <div class="user-avatar" id="userAvatar">T</div>
+            <span class="user-name" id="userLabel">Theron</span>
           </button>
           <div style="text-align:right;margin-top:3px;">
             <button class="sign-out-btn" id="signOutBtn">sign out</button>
@@ -303,6 +314,10 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
     </div>
 
     <div class="section-label" id="myToolsLabel" style="display:none">My Tools</div>
+    <div class="search-bar" id="searchBar" style="display:none">
+      <input type="text" id="searchInput" class="search-input-field" placeholder="Filter links…" autocomplete="off" spellcheck="false">
+      <span class="search-kbd" id="searchKbd">/</span>
+    </div>
     <div class="custom-tools-grid" id="customToolsGrid"></div>
 
     <div class="footer">
@@ -395,13 +410,13 @@ function getToken() {
   return localStorage.getItem('workspace_access_key')
 }
 
-function showApp() {
+function showApp(prefetchedLinks) {
   document.getElementById('auth-screen').style.display = 'none'
   document.getElementById('app').classList.add('visible')
 
   tick()
   setInterval(tick, 30000)
-  loadLinks()
+  loadLinks(prefetchedLinks)
   renderEmojis()
   renderAddTabs()
 }
@@ -413,8 +428,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
   localStorage.setItem('workspace_access_key', key)
   try {
-    await apiFetch('/api/links')
-    showApp()
+    const links = await apiFetch('/api/links')
+    showApp(links)
   } catch (err) {
     document.getElementById('login-error').style.display = 'block'
     localStorage.removeItem('workspace_access_key')
@@ -430,8 +445,8 @@ document.getElementById('signOutBtn').addEventListener('click', () => {
 window.addEventListener('DOMContentLoaded', async () => {
   if (getToken()) {
     try {
-      await apiFetch('/api/links')
-      showApp()
+      const links = await apiFetch('/api/links')
+      showApp(links)
     } catch (err) {
       localStorage.removeItem('workspace_access_key')
     }
@@ -459,21 +474,22 @@ async function apiFetch(path, options = {}) {
   return res.json()
 }
 
-async function loadLinks() {
+async function loadLinks(prefetched) {
   const grid = document.getElementById('customToolsGrid')
   const label = document.getElementById('myToolsLabel')
   if (grid) grid.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>'
   if (label) label.style.display = 'flex'
-  
-  try {
-    tools = await apiFetch('/api/links')
 
-    // Auto-seed default panel apps on first use
-    if (!tools.some(t => t.group === 'Panel')) {
+  try {
+    tools = prefetched || await apiFetch('/api/links')
+
+    // Auto-seed default panel apps on first use (only once ever)
+    if (!tools.some(t => t.group === 'Panel') && !localStorage.getItem('panel_seeded')) {
       for (const d of DEFAULT_PANEL_APPS) {
         const link = await apiFetch('/api/links', { method: 'POST', body: JSON.stringify(d) })
         tools.push(link)
       }
+      localStorage.setItem('panel_seeded', '1')
     }
 
     derivePanelTools()
@@ -486,26 +502,56 @@ async function loadLinks() {
 }
 
 function derivePanelTools() {
-  panelTools = tools.filter(t => t.group === 'Panel').sort((a, b) => a.position - b.position)
+  panelTools = tools.filter(t => t.group === 'Panel').sort((a, b) => Number(a.position) - Number(b.position))
   if (panelTools.length && (!activeTabId || !panelTools.find(t => t.id === activeTabId))) {
     activeTabId = panelTools[0].id
   }
 }
 
+// ── FAVICON HELPER ──
+function faviconUrl(url) {
+  try { return 'https://www.google.com/s2/favicons?sz=32&domain_url=' + encodeURIComponent(new URL(url).origin) }
+  catch { return '' }
+}
+
+function faviconImgTag(url, emoji, cls) {
+  const fav = faviconUrl(url)
+  if (!fav) return emoji
+  return `<img src="${esc(fav)}" class="${cls}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display=''">`
+       + `<span style="display:none">${emoji}</span>`
+}
+
+// ── SEARCH STATE ──
+let searchQuery = ''
+
 // ── MAIN GRID ──
 function renderMain() {
   const grid = document.getElementById('customToolsGrid')
   const label = document.getElementById('myToolsLabel')
+  const searchBar = document.getElementById('searchBar')
   if (!grid) return
   grid.innerHTML = ''
-  const mainTools = tools.filter(t => t.group !== 'Panel')
-  if (!mainTools.length) { if(label) label.style.display = 'none'; return }
-  if(label) label.style.display = 'flex'
+  const allMain = tools.filter(t => t.group !== 'Panel')
+  if (!allMain.length) {
+    if (label) label.style.display = 'none'
+    if (searchBar) searchBar.style.display = 'none'
+    return
+  }
+  if (label) label.style.display = 'flex'
+  if (searchBar) searchBar.style.display = 'flex'
+
+  const q = searchQuery.toLowerCase()
+  const mainTools = q ? allMain.filter(t => t.name.toLowerCase().includes(q) || t.group.toLowerCase().includes(q) || t.url.toLowerCase().includes(q)) : allMain
+
+  if (!mainTools.length) {
+    grid.innerHTML = '<div class="search-no-results">No links match your search.</div>'
+    return
+  }
   mainTools.forEach(t => {
     const card = document.createElement('div')
     card.className = 'custom-tool-card'
     card.innerHTML = `
-      <span class="tool-icon">${t.icon}</span>
+      <span class="tool-icon">${faviconImgTag(t.url, t.icon, 'favicon-img')}</span>
       <span class="custom-tool-label">${esc(t.name)}</span>
       <div class="custom-tool-actions">
         <a class="tool-action-btn" href="${esc(t.url)}" target="_blank" rel="noopener" title="Open in new tab">↗</a>
@@ -527,7 +573,7 @@ function buildPanelTabs() {
     const btn = document.createElement('button')
     btn.className = 'panel-tab' + (t.id === activeTabId ? ' active' : '')
     btn.dataset.id = t.id
-    btn.innerHTML = `<span>${t.icon}</span>${esc(t.name)}`
+    btn.innerHTML = `<span>${faviconImgTag(t.url, t.icon, 'panel-tab-favicon')}</span>${esc(t.name)}`
     btn.addEventListener('click', () => switchTab(t.id))
     tabsEl.appendChild(btn)
   })
@@ -625,35 +671,46 @@ function renderList() {
   list.innerHTML = ''
   const shown = filterGroup === 'all' ? tools : tools.filter(t => t.group === filterGroup)
   if (!shown.length) { list.innerHTML = '<div class="empty-list">No links yet.</div>'; return }
-  shown.forEach(t => {
-    const ri = tools.indexOf(t)
+  shown.forEach((t, si) => {
     const row = document.createElement('div')
     row.className = 'link-row'
     row.innerHTML = `
-      <span class="link-row-icon">${t.icon}</span>
+      <span class="link-row-icon">${faviconImgTag(t.url, t.icon, 'link-row-favicon')}</span>
       <div class="link-row-info">
         <div class="link-row-name">${esc(t.name)}</div>
         <div class="link-row-meta">${esc(t.group)} · ${esc(shortUrl(t.url))}</div>
       </div>
       <div class="link-row-actions">
-        <button class="icon-btn mv up" data-i="${ri}" title="Move up">↑</button>
-        <button class="icon-btn mv dn" data-i="${ri}" title="Move down">↓</button>
+        <button class="icon-btn mv up" data-si="${si}" title="Move up"${si === 0 ? ' disabled style="opacity:0.3;cursor:default"' : ''}>↑</button>
+        <button class="icon-btn mv dn" data-si="${si}" title="Move down"${si === shown.length - 1 ? ' disabled style="opacity:0.3;cursor:default"' : ''}>↓</button>
         <button class="icon-btn del" data-id="${t.id}" title="Delete">✕</button>
       </div>`
     list.appendChild(row)
   })
   list.querySelectorAll('.del').forEach(b => b.addEventListener('click', async e => {
     const id = e.currentTarget.dataset.id
-    try { const wasPanel = tools.find(t => t.id === id)?.group === 'Panel'; await apiFetch('/api/links/' + id, { method: 'DELETE' }); tools = tools.filter(t => t.id !== id); derivePanelTools(); renderMain(); renderList(); renderFilterTabs(); if (wasPanel) { buildPanelTabs(); buildIframeLayers() } }
-    catch(err) { alert('Could not delete — check connection') }
+    const link = tools.find(t => t.id === id)
+    if (!confirm(`Delete "${link?.name || 'this link'}"?`)) return
+    try {
+      const wasPanel = link?.group === 'Panel'
+      await apiFetch('/api/links/' + id, { method: 'DELETE' })
+      tools = tools.filter(t => t.id !== id)
+      derivePanelTools(); renderMain(); renderList(); renderFilterTabs()
+      if (wasPanel) { buildPanelTabs(); buildIframeLayers() }
+    } catch(err) { alert('Could not delete — check connection') }
   }))
   list.querySelectorAll('.up').forEach(b => b.addEventListener('click', async e => {
-    const i = +e.currentTarget.dataset.i; if (i===0) return
-    ;[tools[i-1],tools[i]]=[tools[i],tools[i-1]]; derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
+    const si = +e.currentTarget.dataset.si; if (si === 0) return
+    // Swap adjacent items within the shown (filtered) list, mapped back to global tools array
+    const a = tools.indexOf(shown[si - 1]), b2 = tools.indexOf(shown[si])
+    ;[tools[a], tools[b2]] = [tools[b2], tools[a]]
+    derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
   }))
   list.querySelectorAll('.dn').forEach(b => b.addEventListener('click', async e => {
-    const i = +e.currentTarget.dataset.i; if (i===tools.length-1) return
-    ;[tools[i],tools[i+1]]=[tools[i+1],tools[i]]; derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
+    const si = +e.currentTarget.dataset.si; if (si >= shown.length - 1) return
+    const a = tools.indexOf(shown[si]), b2 = tools.indexOf(shown[si + 1])
+    ;[tools[a], tools[b2]] = [tools[b2], tools[a]]
+    derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
   }))
 }
 
@@ -732,7 +789,40 @@ function closeAdmin() { document.getElementById('adminSidebar').classList.remove
 document.getElementById('adminBtn').addEventListener('click', openAdmin)
 document.getElementById('adminClose').addEventListener('click', closeAdmin)
 document.getElementById('adminOverlay').addEventListener('click', closeAdmin)
-document.addEventListener('keydown', e => { if (e.key==='Escape') closeAdmin() })
+// ── SEARCH ──
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim()
+  renderMain()
+})
+
+// ── KEYBOARD SHORTCUTS ──
+document.addEventListener('keydown', e => {
+  const adminOpen = document.getElementById('adminSidebar').classList.contains('open')
+  const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)
+
+  // Escape: blur search first, then close admin
+  if (e.key === 'Escape') {
+    if (document.activeElement === document.getElementById('searchInput')) {
+      document.getElementById('searchInput').blur()
+      return
+    }
+    if (adminOpen) { closeAdmin(); return }
+  }
+
+  // Cmd+K / Ctrl+K: focus search
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault()
+    document.getElementById('searchInput')?.focus()
+    return
+  }
+
+  // / key: focus search (only when not already in an input)
+  if (e.key === '/' && !inInput) {
+    e.preventDefault()
+    document.getElementById('searchInput')?.focus()
+    return
+  }
+})
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 function shortUrl(url) { try { return new URL(url).hostname } catch(e) { return url.slice(0,28) } }
