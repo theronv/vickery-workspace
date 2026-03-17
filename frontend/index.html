@@ -526,6 +526,274 @@ function generateLaunchpadHTML() {
     </div>`;
 }
 
+// ── LAYOUT ENGINE ──
+function initResizableLayout() {
+    loadPanelLayout();
+
+    const allPanelsData = [
+        { id: 'launchpad', name: 'Launchpad', type: 'fixed', icon: '🏠' },
+        ...panelTools.map(t => ({ id: t.id, name: t.name, url: t.url, icon: t.icon, type: 'iframe' }))
+    ];
+
+    // Reconcile and order panels
+    let currentPanelIds = new Set(allPanelsData.map(p => p.id));
+    panelLayout = panelLayout.filter(id => currentPanelIds.has(id));
+    const newPanelIds = allPanelsData.map(p => p.id).filter(id => !panelLayout.includes(id));
+    panelLayout = [...panelLayout, ...newPanelIds];
+
+    renderPanels();
+}
+
+function renderPanels() {
+    const group = document.getElementById('resizable-panel-group');
+    if (!group) return;
+    group.innerHTML = '';
+
+    panelLayout.forEach(id => {
+        const data = panelTools.find(t => t.id === id) || (id === 'launchpad' ? { id: 'launchpad', name: 'Launchpad', type: 'fixed', icon: '🏠' } : null);
+        if (!data) return;
+
+        const panelDiv = document.createElement('div');
+        panelDiv.id = `panel-${data.id}`;
+        panelDiv.className = 'resizable-panel';
+        panelDiv.dataset.panelId = data.id;
+
+        const currentWidth = panelSizes[data.id] || 0;
+        if (currentWidth > 0) {
+            panelDiv.style.width = `${currentWidth * 100}%`;
+        }
+
+        panelDiv.innerHTML = `
+            <div class="panel-header" draggable="true">
+                <span class="panel-header-title">
+                    <span class="panel-icon">${faviconImgTag(data.url || '', data.icon, 'panel-tab-favicon')}</span>
+                    ${esc(data.name)}
+                </span>
+                <div style="display:flex;gap:4px;">
+                    ${data.id !== 'launchpad' ? `
+                        <button class="panel-remove-btn" title="Pop out" onclick="window.open('${esc(data.url)}', '_blank')">⤢</button>
+                        <button class="panel-remove-btn" title="Remove panel" data-id="${data.id}">✕</button>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="resizable-panel-content">
+                ${data.type === 'iframe'
+                    ? `<iframe class="panel-iframe-wrapper" src="${esc(data.url)}" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-pointer-lock" loading="lazy"></iframe>`
+                    : generateLaunchpadHTML()}
+            </div>
+            <div class="panel-drag-handle"></div>`;
+
+        group.appendChild(panelDiv);
+
+        if (data.id !== 'launchpad') {
+            panelDiv.querySelector('.panel-remove-btn[data-id]').onclick = (e) => {
+                e.stopPropagation();
+                removePanel(data.id);
+            };
+        } else {
+            attachLaunchpadListeners();
+            renderMain();
+            tick(); // Initialize clock
+        }
+
+        addPanelDragAndDrop(panelDiv);
+        addPanelResizing(panelDiv);
+    });
+
+    normalizePanelSizes();
+}
+
+function normalizePanelSizes() {
+    let currentTotal = panelLayout.reduce((sum, id) => sum + (panelSizes[id] || 0), 0);
+    if (currentTotal === 0 && panelLayout.length > 0) {
+        panelLayout.forEach(id => panelSizes[id] = 1 / panelLayout.length);
+        currentTotal = 1;
+    }
+    if (Math.abs(currentTotal - 1) > 0.001 && currentTotal > 0) {
+        panelLayout.forEach(id => panelSizes[id] /= currentTotal);
+    }
+    updatePanelWidths();
+}
+
+function updatePanelWidths() {
+    const group = document.getElementById('resizable-panel-group');
+    if (!group) return;
+    const totalGroupWidth = group.offsetWidth;
+
+    panelLayout.forEach(id => {
+        const panelDiv = document.getElementById(`panel-${id}`);
+        if (panelDiv) {
+            let targetRatio = panelSizes[id];
+            panelDiv.style.width = `${targetRatio * 100}%`;
+        }
+    });
+    savePanelLayout();
+}
+
+function removePanel(panelId) {
+    if (panelId === 'launchpad') return;
+    panelLayout = panelLayout.filter(id => id !== panelId);
+    delete panelSizes[panelId];
+    renderPanels();
+    savePanelLayout();
+}
+
+function addPanelResizing(panelDiv) {
+    const handle = panelDiv.querySelector('.panel-drag-handle');
+    if (!handle) return;
+
+    let isResizing = false;
+    let startX, startWidthRatio;
+    let prevPanelId, nextPanelId;
+    let prevPanelDiv, nextPanelDiv;
+
+    handle.onmousedown = (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        panelDiv.classList.add('resizing');
+
+        const allPanels = Array.from(document.querySelectorAll('.resizable-panel'));
+        const currentIndex = allPanels.indexOf(panelDiv);
+
+        prevPanelDiv = panelDiv;
+        prevPanelId = panelDiv.dataset.panelId;
+
+        if (currentIndex < allPanels.length - 1) {
+            nextPanelDiv = allPanels[currentIndex + 1];
+            nextPanelId = nextPanelDiv.dataset.panelId;
+        } else {
+            nextPanelDiv = null;
+        }
+
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        
+        const onMouseMove = (moveEvent) => {
+            if (!isResizing) return;
+            const dx = moveEvent.clientX - startX;
+            const group = document.getElementById('resizable-panel-group');
+            const totalW = group.offsetWidth;
+
+            if (nextPanelDiv) {
+                const combinedRatio = panelSizes[prevPanelId] + panelSizes[nextPanelId];
+                let newPrevRatio = (prevPanelDiv.offsetWidth + dx) / totalW;
+                let newNextRatio = combinedRatio - newPrevRatio;
+
+                const minRatio = MIN_PANEL_WIDTH_PX / totalW;
+                if (newPrevRatio < minRatio) {
+                    newPrevRatio = minRatio;
+                    newNextRatio = combinedRatio - minRatio;
+                }
+                if (newNextRatio < minRatio) {
+                    newNextRatio = minRatio;
+                    newPrevRatio = combinedRatio - minRatio;
+                }
+
+                panelSizes[prevPanelId] = newPrevRatio;
+                panelSizes[nextPanelId] = newNextRatio;
+
+                prevPanelDiv.style.width = `${newPrevRatio * 100}%`;
+                nextPanelDiv.style.width = `${newNextRatio * 100}%`;
+                startX = moveEvent.clientX;
+            }
+        };
+
+        const onMouseUp = () => {
+            isResizing = false;
+            panelDiv.classList.remove('resizing');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            savePanelLayout();
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+    };
+}
+
+function addPanelDragAndDrop(panelDiv) {
+    const header = panelDiv.querySelector('.panel-header');
+    if (!header) return;
+
+    header.ondragstart = (e) => {
+        e.dataTransfer.setData('text/plain', panelDiv.dataset.panelId);
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => panelDiv.classList.add('dragging'), 0);
+    };
+
+    header.ondragend = () => {
+        panelDiv.classList.remove('dragging');
+        document.querySelectorAll('.resizable-panel').forEach(p => {
+            p.classList.remove('drag-over-left', 'drag-over-right');
+        });
+    };
+
+    panelDiv.ondragover = (e) => {
+        e.preventDefault();
+        const draggingPanel = document.querySelector('.resizable-panel.dragging');
+        if (!draggingPanel || draggingPanel === panelDiv) return;
+
+        const rect = panelDiv.getBoundingClientRect();
+        const midX = rect.left + rect.width / 2;
+
+        document.querySelectorAll('.resizable-panel').forEach(p => {
+            p.classList.remove('drag-over-left', 'drag-over-right');
+        });
+
+        if (e.clientX < midX) {
+            panelDiv.classList.add('drag-over-left');
+        } else {
+            panelDiv.classList.add('drag-over-right');
+        }
+    };
+
+    panelDiv.ondrop = (e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const targetId = panelDiv.dataset.panelId;
+        if (draggedId === targetId) return;
+
+        const rect = panelDiv.getBoundingClientRect();
+        const midX = rect.left + rect.width / 2;
+        const insertBefore = e.clientX < midX;
+
+        const oldIndex = panelLayout.indexOf(draggedId);
+        if (oldIndex === -1) return;
+        panelLayout.splice(oldIndex, 1);
+
+        let newIndex = panelLayout.indexOf(targetId);
+        if (!insertBefore) newIndex++;
+        panelLayout.splice(newIndex, 0, draggedId);
+
+        renderPanels();
+        savePanelLayout();
+    };
+}
+
+function attachLaunchpadListeners() {
+    const signOutBtn = document.getElementById('signOutBtn');
+    if (signOutBtn) signOutBtn.onclick = () => {
+        localStorage.removeItem('workspace_access_key');
+        window.location.reload();
+    };
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.oninput = (e) => {
+        searchQuery = e.target.value.trim();
+        renderMain();
+    };
+
+    const userBtn = document.getElementById('userBtn');
+    if (userBtn) userBtn.onclick = openAdmin;
+}
+
+function getToken() {
+  return localStorage.getItem('workspace_access_key')
+}
+
 function showApp(prefetchedLinks) {
   document.getElementById('auth-screen').style.display = 'none'
   document.getElementById('app').classList.add('visible')
@@ -568,16 +836,17 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // ── CLOCK ──
 function tick() {
+  const clock = document.getElementById('clock');
+  const datestr = document.getElementById('datestr');
+  const tod = document.getElementById('tod');
+  if (!clock || !datestr || !tod) return;
+
   const now = new Date(), h = now.getHours(), m = String(now.getMinutes()).padStart(2,'0')
-  document.getElementById('clock').textContent = (h%12||12)+':'+m+' '+(h>=12?'PM':'AM')
+  clock.textContent = (h%12||12)+':'+m+' '+(h>=12?'PM':'AM')
   const D=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  document.getElementById('datestr').textContent = D[now.getDay()]+' · '+M[now.getMonth()]+' '+now.getDate()
-  document.getElementById('tod').textContent = h<12?'morning':h<17?'afternoon':'evening'
-}
-
-function getToken() {
-  return localStorage.getItem('workspace_access_key')
+  datestr.textContent = D[now.getDay()]+' · '+M[now.getMonth()]+' '+now.getDate()
+  tod.textContent = h<12?'morning':h<17?'afternoon':'evening'
 }
 
 // ── API ──
@@ -592,15 +861,9 @@ async function apiFetch(path, options = {}) {
 }
 
 async function loadLinks(prefetched) {
-  const grid = document.getElementById('customToolsGrid')
-  const label = document.getElementById('myToolsLabel')
-  if (grid) grid.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>'
-  if (label) label.style.display = 'flex'
-
   try {
     tools = prefetched || await apiFetch('/api/links')
 
-    // Auto-seed default panel apps on first use (only once ever)
     if (!tools.some(t => t.group === 'Panel') && !localStorage.getItem('panel_seeded')) {
       for (const d of DEFAULT_PANEL_APPS) {
         const link = await apiFetch('/api/links', { method: 'POST', body: JSON.stringify(d) })
@@ -610,19 +873,16 @@ async function loadLinks(prefetched) {
     }
 
     derivePanelTools()
-    renderMain(); renderList(); renderFilterTabs()
-    buildPanelTabs(); buildIframeLayers()
+    initResizableLayout()
+    renderList()
+    renderFilterTabs()
   } catch(e) {
-    if (grid) grid.innerHTML = '<div style="font-size:12px;color:var(--text-dim);grid-column:1/-1">Could not load links — check API connection.</div>'
-    throw e
+    console.error("Load links failed:", e);
   }
 }
 
 function derivePanelTools() {
   panelTools = tools.filter(t => t.group === 'Panel').sort((a, b) => Number(a.position) - Number(b.position))
-  if (panelTools.length && (!activeTabId || !panelTools.find(t => t.id === activeTabId))) {
-    activeTabId = panelTools[0].id
-  }
 }
 
 // ── FAVICON HELPER ──
@@ -632,8 +892,8 @@ function faviconUrl(url) {
 }
 
 function faviconImgTag(url, emoji, cls) {
-  const fav = faviconUrl(url)
-  if (!fav) return emoji
+  const fav = url ? faviconUrl(url) : null
+  if (!fav) return `<span class="tool-icon-fallback">${emoji}</span>`
   return `<img src="${esc(fav)}" class="${cls}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display=''">`
        + `<span style="display:none">${emoji}</span>`
 }
@@ -677,110 +937,6 @@ function renderMain() {
   })
 }
 
-// ── PANEL ──
-function buildPanelTabs() {
-  const tabsEl = document.getElementById('panelTabs')
-  if (!tabsEl) return
-  tabsEl.innerHTML = ''
-  if (!panelTools.length) {
-    tabsEl.innerHTML = '<div style="padding:10px 13px;font-size:12px;color:var(--text-dim)">No panel apps — add links with group "Panel"</div>'
-    return
-  }
-  panelTools.forEach(t => {
-    const btn = document.createElement('button')
-    btn.className = 'panel-tab' + (t.id === activeTabId ? ' active' : '')
-    btn.dataset.id = t.id
-    btn.innerHTML = `<span>${faviconImgTag(t.url, t.icon, 'panel-tab-favicon')}</span>${esc(t.name)}`
-    btn.addEventListener('click', () => switchTab(t.id))
-    tabsEl.appendChild(btn)
-  })
-}
-
-function buildIframeLayers() {
-  const body = document.getElementById('panelBody')
-  if (!body) return
-
-  // Remove layers that no longer have a matching panel tool
-  const currentIds = new Set(panelTools.map(t => t.id))
-  body.querySelectorAll('.iframe-layer').forEach(layer => {
-    const layerId = layer.id.replace('layer-', '')
-    if (!currentIds.has(layerId)) layer.remove()
-  })
-
-  panelTools.forEach(t => {
-    if (document.getElementById('layer-' + t.id)) return
-    const layer = document.createElement('div')
-    layer.className = 'iframe-layer' + (t.id === activeTabId ? ' active' : '')
-    layer.id = 'layer-' + t.id
-    const loading = document.createElement('div')
-    loading.className = 'iframe-loading'
-    loading.id = 'loading-' + t.id
-    loading.innerHTML = `<div class="loader-ring"></div><div class="loader-label">loading ${esc(t.name.toLowerCase())}…</div>`
-    const errDiv = document.createElement('div')
-    errDiv.className = 'iframe-error'
-    errDiv.id = 'error-' + t.id
-    errDiv.innerHTML = `<div class="iframe-error-icon">⚠</div><div class="iframe-error-title">Couldn't load ${esc(t.name)}</div><div class="iframe-error-msg">The app may block embedding.<br>Try opening it directly.</div><a class="iframe-error-link" href="${esc(t.url)}" target="_blank">Open in new tab →</a>`
-    const iframe = document.createElement('iframe')
-    iframe.src = t.id === activeTabId ? t.url : ''
-    iframe.dataset.src = t.url
-    iframe.dataset.loaded = t.id === activeTabId ? 'loading' : 'idle'
-    iframe.id = 'iframe-' + t.id
-    iframe.className = 'panel-iframe'
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox')
-    iframe.setAttribute('title', t.name)
-    iframe.addEventListener('load', () => {
-      document.getElementById('loading-' + t.id)?.classList.add('hidden')
-      iframe.dataset.loaded = 'done'
-    })
-    iframe.addEventListener('error', () => {
-      document.getElementById('loading-' + t.id)?.classList.add('hidden')
-      document.getElementById('error-' + t.id)?.classList.add('visible')
-    })
-    layer.appendChild(loading); layer.appendChild(errDiv); layer.appendChild(iframe)
-    body.appendChild(layer)
-  })
-}
-
-function switchTab(id) {
-  activeTabId = id
-  document.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.id === id))
-  document.querySelectorAll('.iframe-layer').forEach(l => l.classList.toggle('active', l.id === 'layer-' + id))
-  const iframe = document.getElementById('iframe-' + id)
-  if (iframe?.dataset.loaded === 'idle') {
-    iframe.src = iframe.dataset.src
-    iframe.dataset.loaded = 'loading'
-    document.getElementById('loading-' + id)?.classList.remove('hidden')
-  }
-}
-
-function showPanel() { panelVisible = true; document.getElementById('panel').classList.remove('hidden'); document.getElementById('openPanelBtn').classList.remove('visible') }
-function hidePanel() { panelVisible = false; document.getElementById('panel').classList.add('hidden'); document.getElementById('openPanelBtn').classList.add('visible') }
-
-document.getElementById('btnClosePanel').addEventListener('click', hidePanel)
-document.getElementById('openPanelBtn').addEventListener('click', showPanel)
-document.getElementById('btnReload').addEventListener('click', () => {
-  const iframe = document.getElementById('iframe-' + activeTabId)
-  const tool = panelTools.find(t => t.id === activeTabId)
-  if (!iframe || !tool) return
-  document.getElementById('loading-' + activeTabId)?.classList.remove('hidden')
-  document.getElementById('error-' + activeTabId)?.classList.remove('visible')
-  iframe.src = ''; setTimeout(() => { iframe.src = tool.url }, 50)
-})
-document.getElementById('btnPopout').addEventListener('click', () => {
-  const tool = panelTools.find(t => t.id === activeTabId)
-  if (tool) window.open(tool.url, '_blank')
-})
-
-;(function() {
-  const handle = document.getElementById('dragHandle')
-  const panel = document.getElementById('panel')
-  if (!handle || !panel) return
-  let dragging = false, startX = 0, startW = 0
-  handle.addEventListener('mousedown', e => { dragging = true; startX = e.clientX; startW = panel.offsetWidth; handle.classList.add('dragging'); document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none' })
-  document.addEventListener('mousemove', e => { if (!dragging) return; panel.style.width = Math.max(260, Math.min(window.innerWidth * 0.6, startW + (startX - e.clientX))) + 'px' })
-  document.addEventListener('mouseup', () => { if (!dragging) return; dragging = false; handle.classList.remove('dragging'); document.body.style.cursor = ''; document.body.style.userSelect = '' })
-})()
-
 // ── LINK MANAGER ──
 function renderList() {
   const list = document.getElementById('linksList')
@@ -809,25 +965,25 @@ function renderList() {
     const link = tools.find(t => t.id === id)
     if (!confirm(`Delete "${link?.name || 'this link'}"?`)) return
     try {
-      const wasPanel = link?.group === 'Panel'
       await apiFetch('/api/links/' + id, { method: 'DELETE' })
       tools = tools.filter(t => t.id !== id)
-      derivePanelTools(); renderMain(); renderList(); renderFilterTabs()
-      if (wasPanel) { buildPanelTabs(); buildIframeLayers() }
+      derivePanelTools(); 
+      initResizableLayout();
+      renderList(); 
+      renderFilterTabs()
     } catch(err) { alert('Could not delete — check connection') }
   }))
   list.querySelectorAll('.up').forEach(b => b.addEventListener('click', async e => {
     const si = +e.currentTarget.dataset.si; if (si === 0) return
-    // Swap adjacent items within the shown (filtered) list, mapped back to global tools array
     const a = tools.indexOf(shown[si - 1]), b2 = tools.indexOf(shown[si])
     ;[tools[a], tools[b2]] = [tools[b2], tools[a]]
-    derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
+    derivePanelTools(); initResizableLayout(); renderList(); await batchReorder()
   }))
   list.querySelectorAll('.dn').forEach(b => b.addEventListener('click', async e => {
     const si = +e.currentTarget.dataset.si; if (si >= shown.length - 1) return
     const a = tools.indexOf(shown[si]), b2 = tools.indexOf(shown[si + 1])
     ;[tools[a], tools[b2]] = [tools[b2], tools[a]]
-    derivePanelTools(); renderMain(); renderList(); buildPanelTabs(); await batchReorder()
+    derivePanelTools(); initResizableLayout(); renderList(); await batchReorder()
   }))
 }
 
@@ -893,47 +1049,51 @@ document.getElementById('btnAdd').addEventListener('click', async () => {
   btn.textContent = 'Saving…'; btn.classList.add('saving'); btn.disabled = true; errEl.style.display = 'none'
   try {
     const link = await apiFetch('/api/links', { method: 'POST', body: JSON.stringify({ name, url, icon: selectedEmoji, group: addGroup }) })
-    tools.push(link); derivePanelTools(); renderMain(); renderList(); renderFilterTabs()
-    if (link.group === 'Panel') { buildPanelTabs(); buildIframeLayers() }
+    tools.push(link); derivePanelTools(); initResizableLayout(); renderList(); renderFilterTabs()
     document.getElementById('inputUrl').value = ''; document.getElementById('inputName').value = ''
     selectedEmoji = EMOJIS[0]; renderEmojis()
   } catch(e) { errEl.textContent = 'Could not save — check API connection'; errEl.style.display = 'block' }
   finally { btn.textContent = 'Add Link'; btn.classList.remove('saving'); validateForm() }
 })
 
-function openAdmin() { document.getElementById('adminSidebar').classList.add('open'); document.getElementById('adminOverlay').classList.add('open'); document.getElementById('launchpad').classList.add('dimmed'); renderFilterTabs(); renderList() }
-function closeAdmin() { document.getElementById('adminSidebar').classList.remove('open'); document.getElementById('adminOverlay').classList.remove('open'); document.getElementById('launchpad').classList.remove('dimmed') }
+function openAdmin() { 
+  document.getElementById('adminSidebar').classList.add('open'); 
+  document.getElementById('adminOverlay').classList.add('open'); 
+  const lp = document.getElementById('launchpad');
+  if (lp) lp.classList.add('dimmed'); 
+  renderFilterTabs(); 
+  renderList() 
+}
+function closeAdmin() { 
+  document.getElementById('adminSidebar').classList.remove('open'); 
+  document.getElementById('adminOverlay').classList.remove('open'); 
+  const lp = document.getElementById('launchpad');
+  if (lp) lp.classList.remove('dimmed'); 
+}
 document.getElementById('adminBtn').addEventListener('click', openAdmin)
 document.getElementById('adminClose').addEventListener('click', closeAdmin)
 document.getElementById('adminOverlay').addEventListener('click', closeAdmin)
-// ── SEARCH ──
-document.getElementById('searchInput').addEventListener('input', e => {
-  searchQuery = e.target.value.trim()
-  renderMain()
-})
 
 // ── KEYBOARD SHORTCUTS ──
 document.addEventListener('keydown', e => {
   const adminOpen = document.getElementById('adminSidebar').classList.contains('open')
   const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)
 
-  // Escape: blur search first, then close admin
   if (e.key === 'Escape') {
-    if (document.activeElement === document.getElementById('searchInput')) {
-      document.getElementById('searchInput').blur()
+    const searchInput = document.getElementById('searchInput');
+    if (document.activeElement === searchInput) {
+      searchInput.blur()
       return
     }
     if (adminOpen) { closeAdmin(); return }
   }
 
-  // Cmd+K / Ctrl+K: focus search
   if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
     e.preventDefault()
     document.getElementById('searchInput')?.focus()
     return
   }
 
-  // / key: focus search (only when not already in an input)
   if (e.key === '/' && !inInput) {
     e.preventDefault()
     document.getElementById('searchInput')?.focus()
