@@ -625,7 +625,7 @@ function renderPanels() {
                 </div>
             </div>
             <div class="resizable-panel-content">
-                ${data.type === 'iframe'
+                ${data.id !== 'launchpad'
                     ? `<iframe class="panel-iframe-wrapper" src="${esc(data.url)}" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-pointer-lock" loading="lazy"></iframe>`
                     : generateLaunchpadHTML()}
             </div>
