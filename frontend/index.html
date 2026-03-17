@@ -220,6 +220,113 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 .favicon-img { width: 14px; height: 14px; border-radius: 2px; vertical-align: middle; }
 .link-row-favicon { width: 14px; height: 14px; border-radius: 2px; vertical-align: middle; }
 .panel-tab-favicon { width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; }
+/* ── NEW RESIZABLE LAYOUT STYLES ── */
+#main-layout { display: flex; height: 100vh; width: 100vw; background-color: var(--bg); color: var(--text); }
+#main-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#resizable-panel-group {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+.resizable-panel {
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+}
+.resizable-panel:last-child { border-right: none; }
+.resizable-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    position: relative;
+}
+.panel-iframe-wrapper {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: var(--surface);
+    display: block;
+}
+.panel-drag-handle {
+    width: 6px;
+    cursor: ew-resize;
+    position: absolute;
+    top: 0;
+    right: -3px;
+    bottom: 0;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+.resizable-panel:not(.dragging) .panel-drag-handle:hover,
+.resizable-panel.resizing .panel-drag-handle {
+    opacity: 1;
+    background-color: var(--orange-border);
+}
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    cursor: grab;
+    user-select: none;
+    flex-shrink: 0;
+}
+.panel-header:active { cursor: grabbing; }
+.panel-header-title {
+    font-weight: 600;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Fira Code', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.panel-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+.panel-remove-btn:hover { background: rgba(239, 68, 68, 0.1); color: var(--red); }
+
+/* Drag-and-drop feedback styles */
+.resizable-panel.dragging {
+    opacity: 0.4;
+    z-index: 100;
+}
+.resizable-panel.drag-over-left { border-left: 3px solid var(--orange); }
+.resizable-panel.drag-over-right { border-right: 3px solid var(--orange); }
+
+/* Hide old layout components */
+.launchpad, .panel, .drag-handle, .open-panel-btn { display: none !important; }
+
+/* Adjust launchpad padding when inside a panel */
+.resizable-panel .launchpad-inner {
+    padding: 32px 24px;
+    max-width: 100%;
+}
+
 </style>
 </head>
 <body>
@@ -239,113 +346,11 @@ html, body { background: var(--bg); color: var(--text); font-family: 'DM Sans', 
 
 <div id="app">
 <div class="workspace">
-
-  <div class="launchpad" id="launchpad">
-  <div class="launchpad-inner">
-
-    <div class="header">
-      <div class="header-left">
-        <div class="wordmark">Vickery Digital</div>
-        <div class="greeting">Good <span id="tod">morning</span>, <span id="userName">Theron</span>.</div>
-      </div>
-      <div class="header-right">
-        <div class="time-block">
-          <div class="clock" id="clock">--:-- --</div>
-          <div class="date-str" id="datestr">---</div>
-        </div>
-        <div>
-          <button class="user-btn" id="userBtn">
-            <div class="user-avatar" id="userAvatar">T</div>
-            <span class="user-name" id="userLabel">Theron</span>
-          </button>
-          <div style="text-align:right;margin-top:3px;">
-            <button class="sign-out-btn" id="signOutBtn">sign out</button>
-          </div>
-        </div>
-      </div>
+  <div id="main-layout">
+    <div id="main-container">
+      <div id="resizable-panel-group"></div>
     </div>
-
-    <div class="section-label">Your Apps</div>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:var(--green);box-shadow:0 0 5px rgba(34,197,94,0.5)"></div>live</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>in dev</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--text-dim)"></div>pipeline</div>
-    </div>
-    <div class="apps-grid">
-      <a class="app-card" href="https://apps.apple.com" target="_blank">
-        <div class="status-dot status-live"></div>
-        <div class="app-icon" style="background:rgba(249,115,22,0.12);">🧹</div>
-        <div class="app-name">Chorify</div>
-        <div class="app-desc">Household chore tracker. App Store.</div>
-      </a>
-      <a class="app-card" href="#" target="_blank">
-        <div class="status-dot status-dev"></div>
-        <div class="app-icon" style="background:rgba(59,130,246,0.12);">🎵</div>
-        <div class="app-name">Needledrop</div>
-        <div class="app-desc">Music app. React Native / iOS.</div>
-      </a>
-      <a class="app-card" href="#" target="_blank">
-        <div class="status-dot status-dev"></div>
-        <div class="app-icon" style="background:rgba(34,197,94,0.12);">📝</div>
-        <div class="app-name">MonoLine</div>
-        <div class="app-desc">One-line daily journal. Score 11/12.</div>
-      </a>
-      <div class="app-card placeholder">
-        <div class="status-dot status-idea"></div>
-        <div class="app-icon" style="background:rgba(107,114,128,0.08);color:var(--text-dim);font-size:19px;font-weight:300;">+</div>
-        <div class="app-name" style="color:var(--text-muted)">Next App</div>
-        <div class="app-desc">~50 ideas in the pipeline.</div>
-      </div>
-    </div>
-
-    <div class="section-label">Dev Console</div>
-    <div class="tools-grid">
-      <a class="tool-link" href="https://vercel.com/dashboard" target="_blank"><span class="tool-icon">▲</span> Vercel</a>
-      <a class="tool-link" href="https://turso.tech/app" target="_blank"><span class="tool-icon">⬡</span> Turso</a>
-      <a class="tool-link" href="https://app.revenuecat.com" target="_blank"><span class="tool-icon">$</span> RevenueCat</a>
-      <a class="tool-link" href="https://expo.dev" target="_blank"><span class="tool-icon">○</span> Expo EAS</a>
-      <a class="tool-link" href="https://sentry.io" target="_blank"><span class="tool-icon">⚑</span> Sentry</a>
-      <a class="tool-link" href="https://dash.cloudflare.com" target="_blank"><span class="tool-icon">☁</span> Cloudflare</a>
-      <a class="tool-link" href="https://github.com" target="_blank"><span class="tool-icon">⌥</span> GitHub</a>
-      <a class="tool-link" href="https://appstoreconnect.apple.com" target="_blank"><span class="tool-icon">⌘</span> App Store Connect</a>
-      <a class="tool-link" href="https://lovable.dev" target="_blank"><span class="tool-icon">🌿</span> Lovable</a>
-      <a class="tool-link" href="https://claude.ai" target="_blank"><span class="tool-icon">◆</span> Claude</a>
-      <a class="tool-link" href="https://acquire.com" target="_blank"><span class="tool-icon">↗</span> Acquire.com</a>
-    </div>
-
-    <div class="section-label" id="myToolsLabel" style="display:none">My Tools</div>
-    <div class="search-bar" id="searchBar" style="display:none">
-      <input type="text" id="searchInput" class="search-input-field" placeholder="Filter links…" autocomplete="off" spellcheck="false">
-      <span class="search-kbd" id="searchKbd">/</span>
-    </div>
-    <div class="custom-tools-grid" id="customToolsGrid"></div>
-
-    <div class="footer">
-      <div class="footer-left">vickery-digital · bothell, wa</div>
-      <div class="budget-bar-wrap">
-        <div class="budget-label">infra</div>
-        <div class="budget-bar"><div class="budget-fill"></div></div>
-        <div class="budget-amt">~$19 / $60</div>
-      </div>
-    </div>
-
   </div>
-  </div>
-
-  <div class="drag-handle" id="dragHandle"></div>
-
-  <div class="panel" id="panel">
-    <div class="panel-header">
-      <div class="panel-tabs" id="panelTabs"></div>
-      <div class="panel-controls">
-        <button class="panel-btn" id="btnReload" title="Reload">↺</button>
-        <button class="panel-btn" id="btnPopout" title="Open in new tab">⤢</button>
-        <button class="panel-btn close-btn" id="btnClosePanel" title="Close panel">✕</button>
-      </div>
-    </div>
-    <div class="panel-body" id="panelBody"></div>
-  </div>
-
 </div>
 </div>
 
@@ -406,8 +411,119 @@ const GROUPS = ['My Tools','Dev','AI','Research','Business','Other','Panel']
 let tools = [], panelTools = [], selectedEmoji = EMOJIS[0], addGroup = GROUPS[0]
 let filterGroup = 'all', activeTabId = null, panelVisible = true
 
-function getToken() {
-  return localStorage.getItem('workspace_access_key')
+// ── PANEL LAYOUT STATE ──
+let panelLayout = []; // Array of panel IDs
+let panelSizes = {}; // { id: percentage_width }
+const MIN_PANEL_WIDTH_PX = 240;
+
+function savePanelLayout() {
+    localStorage.setItem('vickery_panel_layout', JSON.stringify(panelLayout));
+    localStorage.setItem('vickery_panel_sizes', JSON.stringify(panelSizes));
+}
+
+function loadPanelLayout() {
+    try {
+        const storedLayout = localStorage.getItem('vickery_panel_layout');
+        const storedSizes = localStorage.getItem('vickery_panel_sizes');
+        if (storedLayout) panelLayout = JSON.parse(storedLayout);
+        if (storedSizes) panelSizes = JSON.parse(storedSizes);
+    } catch (e) {
+        console.error("Failed to load panel layout:", e);
+    }
+}
+
+// ── CONTENT GENERATORS ──
+function generateLaunchpadHTML() {
+    return `
+    <div class="launchpad" id="launchpad">
+        <div class="launchpad-inner">
+            <div class="header">
+                <div class="header-left">
+                    <div class="wordmark">Vickery Digital</div>
+                    <div class="greeting">Good <span id="tod">morning</span>, <span id="userName">Theron</span>.</div>
+                </div>
+                <div class="header-right">
+                    <div class="time-block">
+                        <div class="clock" id="clock">--:-- --</div>
+                        <div class="date-str" id="datestr">---</div>
+                    </div>
+                    <div>
+                        <button class="user-btn" id="userBtn">
+                            <div class="user-avatar" id="userAvatar">T</div>
+                            <span class="user-name" id="userLabel">Theron</span>
+                        </button>
+                        <div style="text-align:right;margin-top:3px;">
+                            <button class="sign-out-btn" id="signOutBtn">sign out</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-label">Your Apps</div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot" style="background:var(--green);box-shadow:0 0 5px rgba(34,197,94,0.5)"></div>live</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>in dev</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--text-dim)"></div>pipeline</div>
+            </div>
+            <div class="apps-grid">
+                <a class="app-card" href="https://apps.apple.com" target="_blank">
+                    <div class="status-dot status-live"></div>
+                    <div class="app-icon" style="background:rgba(249,115,22,0.12);">🧹</div>
+                    <div class="app-name">Chorify</div>
+                    <div class="app-desc">Household chore tracker. App Store.</div>
+                </a>
+                <a class="app-card" href="#" target="_blank">
+                    <div class="status-dot status-dev"></div>
+                    <div class="app-icon" style="background:rgba(59,130,246,0.12);">🎵</div>
+                    <div class="app-name">Needledrop</div>
+                    <div class="app-desc">Music app. React Native / iOS.</div>
+                </a>
+                <a class="app-card" href="#" target="_blank">
+                    <div class="status-dot status-dev"></div>
+                    <div class="app-icon" style="background:rgba(34,197,94,0.12);">📝</div>
+                    <div class="app-name">MonoLine</div>
+                    <div class="app-desc">One-line daily journal. Score 11/12.</div>
+                </a>
+                <div class="app-card placeholder">
+                    <div class="status-dot status-idea"></div>
+                    <div class="app-icon" style="background:rgba(107,114,128,0.08);color:var(--text-dim);font-size:19px;font-weight:300;">+</div>
+                    <div class="app-name" style="color:var(--text-muted)">Next App</div>
+                    <div class="app-desc">~50 ideas in the pipeline.</div>
+                </div>
+            </div>
+
+            <div class="section-label">Dev Console</div>
+            <div class="tools-grid">
+                <a class="tool-link" href="https://vercel.com/dashboard" target="_blank"><span class="tool-icon">▲</span> Vercel</a>
+                <a class="tool-link" href="https://turso.tech/app" target="_blank"><span class="tool-icon">⬡</span> Turso</a>
+                <a class="tool-link" href="https://app.revenuecat.com" target="_blank"><span class="tool-icon">$</span> RevenueCat</a>
+                <a class="tool-link" href="https://expo.dev" target="_blank"><span class="tool-icon">○</span> Expo EAS</a>
+                <a class="tool-link" href="https://sentry.io" target="_blank"><span class="tool-icon">⚑</span> Sentry</a>
+                <a class="tool-link" href="https://dash.cloudflare.com" target="_blank"><span class="tool-icon">☁</span> Cloudflare</a>
+                <a class="tool-link" href="https://github.com" target="_blank"><span class="tool-icon">⌥</span> GitHub</a>
+                <a class="tool-link" href="https://appstoreconnect.apple.com" target="_blank"><span class="tool-icon">⌘</span> App Store Connect</a>
+                <a class="tool-link" href="https://lovable.dev" target="_blank"><span class="tool-icon">🌿</span> Lovable</a>
+                <a class="tool-link" href="https://claude.ai" target="_blank"><span class="tool-icon">◆</span> Claude</a>
+                <a class="tool-link" href="https://acquire.com" target="_blank"><span class="tool-icon">↗</span> Acquire.com</a>
+            </div>
+
+            <div class="section-label" id="myToolsLabel">My Tools</div>
+            <div class="search-bar" id="searchBar">
+                <input type="text" id="searchInput" class="search-input-field" placeholder="Filter links…" autocomplete="off" spellcheck="false">
+                <span class="search-kbd" id="searchKbd">/</span>
+            </div>
+            <div class="custom-tools-grid" id="customToolsGrid"></div>
+
+            <div class="footer">
+                <div class="footer-left">vickery-digital · bothell, wa</div>
+                <div class="budget-bar-wrap">
+                    <div class="budget-label">infra</div>
+                    <div class="budget-bar"><div class="budget-fill"></div></div>
+                    <div class="budget-amt">~$19 / $60</div>
+                </div>
+            </div>
+        </div>
+    </div>`;
 }
 
 function showApp(prefetchedLinks) {
