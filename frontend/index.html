@@ -554,11 +554,6 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   }
 })
 
-document.getElementById('signOutBtn').addEventListener('click', () => {
-  localStorage.removeItem('workspace_access_key')
-  window.location.reload()
-})
-
 // Check for existing session on load
 window.addEventListener('DOMContentLoaded', async () => {
   if (getToken()) {
