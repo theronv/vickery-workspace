@@ -4,10 +4,6 @@ import { handle } from 'hono/vercel'
 import { authMiddleware } from './auth'
 import linksRouter from './routes/links'
 
-export const config = {
-  runtime: 'edge'
-}
-
 const app = new Hono().basePath('/api')
 
 app.use('/*', cors({
