@@ -27,8 +27,8 @@
 | Launchpad Links | 🟢 Working | All hardcoded and dynamic links open in new tabs with `target="_blank"`. |
 | Panel Creation | 🟢 Working | Links with group 'Panel' correctly appear in the side panel area. |
 | Panel Controls | ✅ FIXED | Added ↻ Reload button to panel headers; implemented `reloadPanel` function. |
-| Panel Constraints | ✅ FIXED | Updated `MIN_PANEL_WIDTH_PX` to 260px and enforced 60vw max-width in resize logic. |
-| Iframe Error State | ✅ FIXED | Implemented custom error card and loading spinner for iframes with `onload`/`onerror` handling. |
+| Panel Constraints | ✅ FIXED | Updated `MIN_PANEL_WIDTH_PX` to 260px and enforced 60vw max-width in resize logic. Improved resizing with absolute delta tracking and requestAnimationFrame for a smooth, professional feel. |
+| Iframe Error State | ✅ FIXED | Implemented custom error card and loading spinner for iframes with `onload`/`onerror` handling. Added `resizing-active` overlay to prevent iframe interference during resize. |
 | Link Manager Form | 🟢 Working | Client-side validation prevents empty name/URL submissions. |
 | Link Reordering | ✅ FIXED | Added 'Saving...' feedback and disabled reorder buttons during the API call. |
 | Link Deletion | 🟢 Working | Confirmation dialog appears; correctly triggers `DELETE` and updates UI after success. |
