@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idea Feasibility Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0f14;
+  --surface: #1a1d24;
+  --surface2: #22252e;
+  --border: #2a2d35;
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --accent-dim: rgba(249, 115, 22, 0.10);
+  --accent-border: rgba(249, 115, 22, 0.35);
+  --text: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-dim: #6b7280;
+  --green: #22c55e;
+  --green-dim: rgba(34, 197, 94, 0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245, 158, 11, 0.12);
+  --red: #ef4444;
+  --red-dim: rgba(239, 68, 68, 0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px;
+  overflow-y: auto;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Cabinet Grotesk', 'DM Sans', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.container {
+  width: 100%;
+  max-width: 520px;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  margin-bottom: 14px;
+  font-size: 20px;
+}
+
+.header h1 {
+  font-size: 22px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.header p {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 18px;
+}
+
+/* Form fields */
+.field {
+  margin-bottom: 18px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.field input[type="text"],
+.field textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.field input[type="text"]:focus,
+.field textarea:focus {
+  border-color: var(--accent);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--text-dim);
+}
+
+/* Criteria */
+.criterion {
+  margin-bottom: 20px;
+}
+
+.criterion:last-child {
+  margin-bottom: 0;
+}
+
+.criterion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.criterion-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.criterion-value {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  min-width: 20px;
+  text-align: right;
+}
+
+.radio-group {
+  display: flex;
+  gap: 8px;
+}
+
+.radio-option {
+  flex: 1;
+}
+
+.radio-option input {
+  display: none;
+}
+
+.radio-option label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.radio-option label:hover {
+  border-color: var(--accent-border);
+  background: var(--surface2);
+}
+
+.radio-option input:checked + label {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.radio-option .score-num {
+  font-family: 'Fira Code', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.radio-option input:checked + label .score-num {
+  color: var(--accent);
+}
+
+.radio-option .score-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+
+.radio-option input:checked + label .score-desc {
+  color: var(--text-secondary);
+}
+
+/* Submit button */
+.btn-score {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-family: 'Cabinet Grotesk', 'DM Sans', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.btn-score:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.btn-score:active {
+  transform: translateY(0);
+}
+
+/* Verdict */
+.verdict-card {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  text-align: center;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.verdict-card.visible {
+  display: block;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.verdict-app-name {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.verdict-score {
+  font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.verdict-max {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+.verdict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 100px;
+  font-family: 'Cabinet Grotesk', 'DM Sans', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.verdict-badge.ship {
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.verdict-badge.watch {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.verdict-badge.later {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.verdict-score.ship  { color: var(--green); }
+.verdict-score.watch { color: var(--amber); }
+.verdict-score.later { color: var(--red); }
+
+.verdict-breakdown {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.breakdown-item {
+  text-align: center;
+}
+
+.breakdown-item .b-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.breakdown-item .b-value {
+  font-family: 'Fira Code', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.btn-reset {
+  margin-top: 18px;
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reset:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="header-icon">&#x1F9EA;</div>
+    <h1>Idea Feasibility Analyzer</h1>
+    <p>Score your app idea across four key dimensions</p>
+  </div>
+
+  <form id="analyzerForm" autocomplete="off">
+    <!-- App Info -->
+    <div class="card">
+      <div class="card-title">App Details</div>
+      <div class="field">
+        <label for="appName">App Name</label>
+        <input type="text" id="appName" placeholder="e.g. FocusFlow" required>
+      </div>
+      <div class="field">
+        <label for="appDesc">Description</label>
+        <textarea id="appDesc" placeholder="What does this app do? Who is it for?" required></textarea>
+      </div>
+    </div>
+
+    <!-- Scoring Criteria -->
+    <div class="card">
+      <div class="card-title">Scoring Criteria</div>
+
+      <!-- Problem Clarity -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <span class="criterion-label">Problem Clarity</span>
+        </div>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" name="problemClarity" id="pc1" value="1" required>
+            <label for="pc1">
+              <span class="score-num">1</span>
+              <span class="score-desc">Vague</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="problemClarity" id="pc2" value="2">
+            <label for="pc2">
+              <span class="score-num">2</span>
+              <span class="score-desc">Defined</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="problemClarity" id="pc3" value="3">
+            <label for="pc3">
+              <span class="score-num">3</span>
+              <span class="score-desc">Sharp</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Completion Feasibility -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <span class="criterion-label">Completion Feasibility</span>
+        </div>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" name="feasibility" id="cf1" value="1" required>
+            <label for="cf1">
+              <span class="score-num">1</span>
+              <span class="score-desc">Unlikely</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="feasibility" id="cf2" value="2">
+            <label for="cf2">
+              <span class="score-num">2</span>
+              <span class="score-desc">Possible</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="feasibility" id="cf3" value="3">
+            <label for="cf3">
+              <span class="score-num">3</span>
+              <span class="score-desc">Doable</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Market Signal -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <span class="criterion-label">Market Signal</span>
+        </div>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" name="marketSignal" id="ms1" value="1" required>
+            <label for="ms1">
+              <span class="score-num">1</span>
+              <span class="score-desc">Weak</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="marketSignal" id="ms2" value="2">
+            <label for="ms2">
+              <span class="score-num">2</span>
+              <span class="score-desc">Emerging</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="marketSignal" id="ms3" value="3">
+            <label for="ms3">
+              <span class="score-num">3</span>
+              <span class="score-desc">Strong</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monetization Potential -->
+      <div class="criterion">
+        <div class="criterion-header">
+          <span class="criterion-label">Monetization Potential</span>
+        </div>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" name="monetization" id="mp1" value="1" required>
+            <label for="mp1">
+              <span class="score-num">1</span>
+              <span class="score-desc">Unclear</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="monetization" id="mp2" value="2">
+            <label for="mp2">
+              <span class="score-num">2</span>
+              <span class="score-desc">Plausible</span>
+            </label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" name="monetization" id="mp3" value="3">
+            <label for="mp3">
+              <span class="score-num">3</span>
+              <span class="score-desc">Obvious</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-score">Score Idea</button>
+  </form>
+
+  <!-- Verdict -->
+  <div id="verdictCard" class="verdict-card">
+    <div class="verdict-app-name" id="verdictAppName"></div>
+    <div class="verdict-score" id="verdictScore"></div>
+    <div class="verdict-max">/ 12</div>
+    <div id="verdictBadge" class="verdict-badge"></div>
+    <div class="verdict-breakdown">
+      <div class="breakdown-item">
+        <div class="b-label">Problem</div>
+        <div class="b-value" id="bProblem"></div>
+      </div>
+      <div class="breakdown-item">
+        <div class="b-label">Feasibility</div>
+        <div class="b-value" id="bFeasibility"></div>
+      </div>
+      <div class="breakdown-item">
+        <div class="b-label">Market</div>
+        <div class="b-value" id="bMarket"></div>
+      </div>
+      <div class="breakdown-item">
+        <div class="b-label">Revenue</div>
+        <div class="b-value" id="bRevenue"></div>
+      </div>
+    </div>
+    <button type="button" class="btn-reset" id="btnReset">Score Another Idea</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById('analyzerForm');
+  const verdictCard = document.getElementById('verdictCard');
+  const btnReset = document.getElementById('btnReset');
+
+  function getRadioValue(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? parseInt(el.value, 10) : 0;
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const appName = document.getElementById('appName').value.trim();
+    const description = document.getElementById('appDesc').value.trim();
+
+    const scores = {
+      problemClarity: getRadioValue('problemClarity'),
+      feasibility: getRadioValue('feasibility'),
+      marketSignal: getRadioValue('marketSignal'),
+      monetization: getRadioValue('monetization'),
+    };
+
+    const total = scores.problemClarity + scores.feasibility + scores.marketSignal + scores.monetization;
+
+    let verdictLabel, verdictClass;
+    if (total >= 10) {
+      verdictLabel = 'SHIP IT';
+      verdictClass = 'ship';
+    } else if (total >= 7) {
+      verdictLabel = 'WATCH';
+      verdictClass = 'watch';
+    } else {
+      verdictLabel = 'LATER';
+      verdictClass = 'later';
+    }
+
+    // Populate verdict card
+    document.getElementById('verdictAppName').textContent = appName;
+    const scoreEl = document.getElementById('verdictScore');
+    scoreEl.textContent = total;
+    scoreEl.className = 'verdict-score ' + verdictClass;
+
+    const badgeEl = document.getElementById('verdictBadge');
+    badgeEl.textContent = verdictLabel;
+    badgeEl.className = 'verdict-badge ' + verdictClass;
+
+    document.getElementById('bProblem').textContent = scores.problemClarity;
+    document.getElementById('bFeasibility').textContent = scores.feasibility;
+    document.getElementById('bMarket').textContent = scores.marketSignal;
+    document.getElementById('bRevenue').textContent = scores.monetization;
+
+    // Show verdict, hide form
+    form.style.display = 'none';
+    verdictCard.classList.add('visible');
+
+    // Post message to parent
+    window.parent.postMessage({
+      type: 'vd:verdict',
+      verdict: verdictLabel,
+      appName: appName,
+      description: description,
+      score: total,
+    }, '*');
+  });
+
+  btnReset.addEventListener('click', function() {
+    verdictCard.classList.remove('visible');
+    form.style.display = 'block';
+    form.reset();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+</script>
+
+</body>
+</html>
