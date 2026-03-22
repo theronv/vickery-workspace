@@ -56,10 +56,12 @@ app.onError((err, c) => {
 })
 
 app.use('/*', cors({
-  origin: [
-    'https://workspace.vickerydigital.com',
-    'http://localhost:3000',
-  ],
+  origin: (origin) => {
+    if (!origin) return 'https://workspace.vickerydigital.com'
+    if (origin === 'https://workspace.vickerydigital.com') return origin
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return origin
+    return null as unknown as string
+  },
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }))
@@ -81,6 +83,34 @@ const authMiddleware: MiddlewareHandler = async (c, next) => {
   c.set('userId', 'primary_user')
   await next()
 }
+
+// POST /api/claude — proxy to Anthropic Messages API
+app.post('/claude', async (c) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    return c.json({ error: 'API key not configured' }, 500)
+  }
+
+  const body = await c.req.text()
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body,
+  })
+
+  const responseHeaders = new Headers()
+  responseHeaders.set('content-type', resp.headers.get('content-type') || 'application/json')
+
+  return new Response(resp.body, {
+    status: resp.status,
+    headers: responseHeaders,
+  })
+})
 
 app.use('/links/*', authMiddleware)
 app.use('/links', authMiddleware)
