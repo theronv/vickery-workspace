@@ -8,6 +8,7 @@ export interface ActiveProject {
   description: string
   score: number | null
   verdict: 'SHIP IT' | 'WATCH' | 'LATER' | null
+  mvpPrompt?: string
 }
 
 interface PipelineState {

@@ -406,11 +406,11 @@ h1, h2, h3, h4 {
       <div class="card-title">App Details</div>
       <div class="field">
         <label for="appName">App Name</label>
-        <input type="text" id="appName" placeholder="e.g. FocusFlow" required>
+        <input type="text" id="appName" placeholder="e.g. FocusFlow">
       </div>
       <div class="field">
         <label for="appDesc">Description</label>
-        <textarea id="appDesc" placeholder="What does this app do? Who is it for?" required></textarea>
+        <textarea id="appDesc" placeholder="What does this app do? Who is it for?"></textarea>
       </div>
     </div>
 
@@ -425,7 +425,7 @@ h1, h2, h3, h4 {
         </div>
         <div class="radio-group">
           <div class="radio-option">
-            <input type="radio" name="problemClarity" id="pc1" value="1" required>
+            <input type="radio" name="problemClarity" id="pc1" value="1">
             <label for="pc1">
               <span class="score-num">1</span>
               <span class="score-desc">Vague</span>
@@ -455,7 +455,7 @@ h1, h2, h3, h4 {
         </div>
         <div class="radio-group">
           <div class="radio-option">
-            <input type="radio" name="feasibility" id="cf1" value="1" required>
+            <input type="radio" name="feasibility" id="cf1" value="1">
             <label for="cf1">
               <span class="score-num">1</span>
               <span class="score-desc">Unlikely</span>
@@ -485,7 +485,7 @@ h1, h2, h3, h4 {
         </div>
         <div class="radio-group">
           <div class="radio-option">
-            <input type="radio" name="marketSignal" id="ms1" value="1" required>
+            <input type="radio" name="marketSignal" id="ms1" value="1">
             <label for="ms1">
               <span class="score-num">1</span>
               <span class="score-desc">Weak</span>
@@ -515,7 +515,7 @@ h1, h2, h3, h4 {
         </div>
         <div class="radio-group">
           <div class="radio-option">
-            <input type="radio" name="monetization" id="mp1" value="1" required>
+            <input type="radio" name="monetization" id="mp1" value="1">
             <label for="mp1">
               <span class="score-num">1</span>
               <span class="score-desc">Unclear</span>
@@ -587,12 +587,22 @@ h1, h2, h3, h4 {
     const appName = document.getElementById('appName').value.trim();
     const description = document.getElementById('appDesc').value.trim();
 
+    if (!appName || !description) {
+      alert('Please enter both an app name and description.');
+      return;
+    }
+
     const scores = {
       problemClarity: getRadioValue('problemClarity'),
       feasibility: getRadioValue('feasibility'),
       marketSignal: getRadioValue('marketSignal'),
       monetization: getRadioValue('monetization'),
     };
+
+    if (!scores.problemClarity || !scores.feasibility || !scores.marketSignal || !scores.monetization) {
+      alert('Please score all four criteria before submitting.');
+      return;
+    }
 
     const total = scores.problemClarity + scores.feasibility + scores.marketSignal + scores.monetization;
 

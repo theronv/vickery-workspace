@@ -1903,6 +1903,20 @@ function copyRefineOutput() {
 document.getElementById('manualName').value = APP.name;
 document.getElementById('manualDesc').value = APP.v1;
 renderAll();
+
+// Listen for pre-fill from parent workspace
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'vd:prefill') {
+    if (e.data.appName) {
+      document.getElementById('manualName').value = e.data.appName;
+    }
+    if (e.data.description) {
+      document.getElementById('manualDesc').value = e.data.description;
+    }
+    onManualInput();
+    renderAll();
+  }
+});
 </script>
 </body>
 </html>

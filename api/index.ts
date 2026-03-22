@@ -63,7 +63,7 @@ app.use('/*', cors({
     return null as unknown as string
   },
   allowHeaders: ['Content-Type', 'Authorization'],
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }))
 
 app.get('/health', (c) => c.json({ ok: true }))
@@ -208,6 +208,97 @@ app.delete('/links/:id', async (c) => {
   if (!existing) return c.json({ error: 'Not found' }, 404)
 
   await dbExec('DELETE FROM custom_links WHERE id = ? AND user_id = ?', [id, userId])
+  return c.json({ ok: true })
+})
+
+// ── Projects ──
+
+app.use('/projects/*', authMiddleware)
+app.use('/projects', authMiddleware)
+
+const CreateProjectSchema = z.object({
+  name: z.string().min(1).max(128),
+  bundleId: z.string().max(128).optional(),
+  score: z.number().int().min(0).max(12).nullable().optional(),
+  verdict: z.enum(['SHIP IT', 'WATCH', 'LATER']).nullable().optional(),
+})
+
+const UpdateCardSchema = z.object({
+  status: z.enum(['todo', 'in-progress', 'done']).optional(),
+  checkedSteps: z.string().optional(),
+})
+
+function mapProject(row: Row) {
+  return { id: row.id, name: row.name, bundleId: row.bundle_id, score: row.score, verdict: row.verdict, stage: row.stage, createdAt: row.created_at, updatedAt: row.updated_at }
+}
+
+// GET /api/projects
+app.get('/projects', async (c) => {
+  const rows = await dbExec('SELECT id, name, bundle_id, score, verdict, stage, created_at, updated_at FROM projects ORDER BY created_at ASC')
+  return c.json(rows.map(mapProject))
+})
+
+// POST /api/projects
+app.post('/projects', async (c) => {
+  const body = await c.req.json()
+  const parsed = CreateProjectSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+
+  const id = nanoId()
+  const now = new Date().toISOString()
+  await dbExec(
+    'INSERT INTO projects (id, name, bundle_id, score, verdict, stage, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, parsed.data.name, parsed.data.bundleId || '', parsed.data.score ?? 0, parsed.data.verdict || '', 1, now, now]
+  )
+
+  const [project] = await dbExec('SELECT id, name, bundle_id, score, verdict, stage, created_at, updated_at FROM projects WHERE id = ?', [id])
+  return c.json(mapProject(project), 201)
+})
+
+// GET /api/projects/:id
+app.get('/projects/:id', async (c) => {
+  const { id } = c.req.param()
+  const [project] = await dbExec('SELECT id, name, bundle_id, score, verdict, stage, created_at, updated_at FROM projects WHERE id = ?', [id])
+  if (!project) return c.json({ error: 'Not found' }, 404)
+
+  const cardStates = await dbExec('SELECT project_id, card_id, status, checked_steps, updated_at FROM card_states WHERE project_id = ?', [id])
+  return c.json({ ...mapProject(project), cardStates: cardStates.map(cs => ({ projectId: cs.project_id, cardId: cs.card_id, status: cs.status, checkedSteps: cs.checked_steps, updatedAt: cs.updated_at })) })
+})
+
+// PATCH /api/projects/:id/cards/:cardId
+app.patch('/projects/:id/cards/:cardId', async (c) => {
+  const { id, cardId } = c.req.param()
+  const body = await c.req.json()
+  const parsed = UpdateCardSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+
+  const now = new Date().toISOString()
+  const existing = await dbExec('SELECT project_id FROM card_states WHERE project_id = ? AND card_id = ?', [id, cardId])
+
+  if (existing.length > 0) {
+    const sets: string[] = ['updated_at = ?']
+    const args: (string | number)[] = [now]
+    if (parsed.data.status) { sets.push('status = ?'); args.push(parsed.data.status) }
+    if (parsed.data.checkedSteps !== undefined) { sets.push('checked_steps = ?'); args.push(parsed.data.checkedSteps) }
+    args.push(id, cardId)
+    await dbExec(`UPDATE card_states SET ${sets.join(', ')} WHERE project_id = ? AND card_id = ?`, args)
+  } else {
+    await dbExec(
+      'INSERT INTO card_states (project_id, card_id, status, checked_steps, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [id, cardId, parsed.data.status || 'todo', parsed.data.checkedSteps || '[]', now]
+    )
+  }
+
+  return c.json({ ok: true })
+})
+
+// DELETE /api/projects/:id
+app.delete('/projects/:id', async (c) => {
+  const { id } = c.req.param()
+  await dbExec('DELETE FROM card_states WHERE project_id = ?', [id])
+  const existing = await dbExec('SELECT id FROM projects WHERE id = ?', [id])
+  if (existing.length === 0) return c.json({ error: 'Not found' }, 404)
+  await dbExec('DELETE FROM projects WHERE id = ?', [id])
   return c.json({ ok: true })
 })
 
