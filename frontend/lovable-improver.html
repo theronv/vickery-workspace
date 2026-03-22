@@ -1858,7 +1858,7 @@ Rules for the prompt you generate:
 ${claudeMd ? `CLAUDE.md contents:\n${claudeMd}\n\n` : ''}Requested change:\n${change}`;
 
   try {
-    const resp = await fetch('/api/claude', {
+    const resp = await fetch('https://workspace-api.vercel.app/api/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

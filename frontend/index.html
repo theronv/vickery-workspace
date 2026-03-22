@@ -1158,6 +1158,14 @@ async function loadLinks(prefetched) {
       localStorage.setItem('panel_seeded', '1')
     }
 
+    // Ensure any new default panels get added for existing users
+    for (const d of DEFAULT_PANEL_APPS) {
+      if (!tools.some(t => t.name === d.name)) {
+        const link = await apiFetch('/api/links', { method: 'POST', body: JSON.stringify(d) })
+        tools.push(link)
+      }
+    }
+
     derivePanelTools()
     initResizableLayout()
     renderList()
