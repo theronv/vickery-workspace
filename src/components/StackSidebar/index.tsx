@@ -17,7 +17,7 @@ export default function StackSidebar() {
 
   return (
     <aside
-      className="shrink-0 flex flex-col bg-vd-bg border-r border-vd-border h-full overflow-hidden"
+      className="shrink-0 flex flex-col bg-vd-surface border-r border-vd-border h-full overflow-hidden"
       style={{
         width: open ? 260 : 48,
         transition: 'width 200ms ease',
