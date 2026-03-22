@@ -4,6 +4,7 @@ import { PipelineProvider, usePipeline } from './context/PipelineContext'
 import LoginScreen from './components/LoginScreen'
 import TopNav from './components/TopNav'
 import ProcessSidebar from './components/ProcessSidebar'
+import StackSidebar from './components/StackSidebar'
 import Toast from './components/Toast'
 import VetPanel from './panels/VetPanel'
 import BuildPanel from './panels/BuildPanel'
@@ -17,11 +18,14 @@ function Dashboard() {
     <div className="flex flex-col h-screen bg-vd-bg">
       <TopNav onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-      <main className="flex-1 overflow-hidden">
-        {activePanel === 'vet' && <VetPanel />}
-        {activePanel === 'build' && <BuildPanel />}
-        {activePanel === 'execute' && <ExecutePanel />}
-      </main>
+      <div className="flex flex-1 overflow-hidden">
+        <StackSidebar />
+        <main className="flex-1 overflow-hidden min-w-0">
+          {activePanel === 'vet' && <VetPanel />}
+          {activePanel === 'build' && <BuildPanel />}
+          {activePanel === 'execute' && <ExecutePanel />}
+        </main>
+      </div>
 
       <ProcessSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <Toast />

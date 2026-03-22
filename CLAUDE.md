@@ -59,9 +59,17 @@ This is internal tooling, not a product. No RevenueCat. No acquisition docs need
 │   │   ├── KanbanBoard.tsx    ← Kanban container + card data
 │   │   ├── KanbanColumn.tsx   ← Single kanban column
 │   │   └── KanbanCard.tsx     ← Card with checklist + command snippet
+│   │   ├── StackSidebar/         ← Stack Links sidebar (localStorage only, no API routes)
+│   │   │   ├── index.tsx         ← Main sidebar shell (collapsed/expanded)
+│   │   │   ├── types.ts          ← StackLink, StackCategory, default data
+│   │   │   ├── CategoryRow.tsx   ← Collapsible category with links
+│   │   │   ├── LinkItem.tsx      ← Single link row
+│   │   │   ├── SettingsPanel.tsx  ← Settings overlay for managing links
+│   │   │   └── IconBadge.tsx     ← Icon badge renderer
 │   ├── hooks/
 │   │   ├── useProjects.ts     ← CRUD for /api/projects
-│   │   └── useCardStates.ts   ← CRUD for card state updates
+│   │   ├── useCardStates.ts   ← CRUD for card state updates
+│   │   └── useStackSidebar.ts ← Stack sidebar state + localStorage persistence
 │   └── tools/
 │       ├── idea-analyzer.html      ← Idea Feasibility Analyzer (embedded via srcDoc)
 │       └── lovable-improver.html   ← PromptCraft tool (embedded via srcDoc)
