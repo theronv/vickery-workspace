@@ -9,6 +9,7 @@ import Toast from './components/Toast'
 import VetPanel from './panels/VetPanel'
 import BuildPanel from './panels/BuildPanel'
 import ExecutePanel from './panels/ExecutePanel'
+import CliPanel from './panels/CliPanel'
 
 function Dashboard() {
   const { activePanel } = usePipeline()
@@ -24,6 +25,7 @@ function Dashboard() {
           {activePanel === 'vet' && <VetPanel />}
           {activePanel === 'build' && <BuildPanel />}
           {activePanel === 'execute' && <ExecutePanel />}
+          {activePanel === 'cli' && <CliPanel />}
         </main>
       </div>
 

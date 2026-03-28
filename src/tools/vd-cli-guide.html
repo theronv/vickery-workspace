@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>vd-cli Reference</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #1a1d24;
+    --border:   #2a2d35;
+    --accent:   #f97316;
+    --text:     #f9fafb;
+    --muted:    #9ca3af;
+    --dim:      #6b7280;
+    --success:  #22c55e;
+    --warning:  #f59e0b;
+    --error:    #ef4444;
+    --mono:     'Fira Code', 'Cascadia Code', monospace;
+    --sans:     'DM Sans', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar nav ── */
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 20px 0;
+    background: var(--surface);
+  }
+
+  .sidebar-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+    padding: 0 16px 8px;
+    text-transform: uppercase;
+  }
+
+  .nav-section {
+    margin-bottom: 4px;
+  }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 16px 4px;
+  }
+
+  .nav-link {
+    display: block;
+    padding: 5px 16px;
+    color: var(--muted);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 11px;
+    transition: color 0.15s, background 0.15s;
+    border-left: 2px solid transparent;
+    cursor: pointer;
+  }
+
+  .nav-link:hover {
+    color: var(--text);
+    background: rgba(249,115,22,0.08);
+    border-left-color: var(--accent);
+  }
+
+  /* ── Main content ── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px 60px;
+    scroll-behavior: smooth;
+  }
+
+  /* ── Page header ── */
+  .page-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-title {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* ── Workflow diagram ── */
+  .workflow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .workflow-phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .phase-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .workflow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .workflow-step:last-child { border-bottom: none; }
+
+  .step-cmd {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    white-space: nowrap;
+    min-width: 100px;
+  }
+
+  .step-manual {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--dim);
+    font-style: italic;
+    min-width: 100px;
+  }
+
+  .step-desc {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Section headers ── */
+  .section {
+    margin-bottom: 40px;
+    scroll-margin-top: 16px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .section-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-git     { background: rgba(34,197,94,0.15); color: var(--success); }
+  .badge-phase1  { background: rgba(249,115,22,0.15); color: var(--accent); }
+  .badge-phase2  { background: rgba(99,102,241,0.15); color: #818cf8; }
+  .badge-mgmt    { background: rgba(156,163,175,0.15); color: var(--muted); }
+
+  /* ── Command cards ── */
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .cmd-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .cmd-card.full { grid-column: 1 / -1; }
+
+  .cmd-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .cmd-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+
+  .cmd-output {
+    font-size: 10px;
+    color: var(--dim);
+    font-family: var(--mono);
+  }
+
+  .cmd-output span {
+    color: var(--success);
+  }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .code-block .c-accent { color: var(--accent); }
+  .code-block .c-dim    { color: var(--dim); }
+  .code-block .c-green  { color: var(--success); }
+  .code-block .c-muted  { color: var(--muted); }
+
+  /* ── Quick ref table ── */
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .ref-table th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ref-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(42,45,53,0.5);
+    vertical-align: top;
+  }
+
+  .ref-table tr:last-child td { border-bottom: none; }
+
+  .ref-table td:first-child {
+    font-family: var(--mono);
+    color: var(--accent);
+    white-space: nowrap;
+    width: 220px;
+  }
+
+  .ref-table td:last-child {
+    color: var(--muted);
+  }
+
+  .ref-table .group-row td {
+    padding-top: 14px;
+    padding-bottom: 2px;
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    border-bottom: none;
+  }
+
+  /* ── Tips ── */
+  .tip {
+    background: rgba(249,115,22,0.07);
+    border: 1px solid rgba(249,115,22,0.2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+
+  .tip strong {
+    color: var(--accent);
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+
+  /* ── Flag list ── */
+  .flag-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .flag-row {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+  }
+
+  .flag-name {
+    font-family: var(--mono);
+    color: var(--muted);
+    min-width: 130px;
+    flex-shrink: 0;
+  }
+
+  .flag-desc {
+    color: var(--dim);
+  }
+
+  /* ── Session flow box ── */
+  .session-flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .flow-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    margin-bottom: 12px;
+  }
+
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .flow-step-cmd {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    min-width: 140px;
+  }
+
+  .flow-step-note {
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .flow-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 10px 0;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-title">vd-cli</div>
+
+    <div class="nav-section">
+      <a class="nav-link" href="#session">Session Flow</a>
+      <a class="nav-link" href="#quickref">Quick Reference</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Git</div>
+      <a class="nav-link" href="#git-start">start</a>
+      <a class="nav-link" href="#git-save">save</a>
+      <a class="nav-link" href="#git-diff">diff</a>
+      <a class="nav-link" href="#git-log">log</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Management</div>
+      <a class="nav-link" href="#register">register</a>
+      <a class="nav-link" href="#projects">projects</a>
+      <a class="nav-link" href="#status">status</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Phase 1 — Build</div>
+      <a class="nav-link" href="#audit">audit</a>
+      <a class="nav-link" href="#opportunities">opportunities</a>
+      <a class="nav-link" href="#prompts">prompts</a>
+      <a class="nav-link" href="#scaffold">scaffold</a>
+      <a class="nav-link" href="#migrate">migrate</a>
+      <a class="nav-link" href="#retro">retro</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Phase 2 — Ship</div>
+      <a class="nav-link" href="#brand">brand</a>
+      <a class="nav-link" href="#listing">listing</a>
+      <a class="nav-link" href="#screenshots">screenshots</a>
+      <a class="nav-link" href="#press">press</a>
+      <a class="nav-link" href="#social">social</a>
+      <a class="nav-link" href="#help-articles">help-articles</a>
+      <a class="nav-link" href="#launch">launch</a>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <div class="page-header">
+      <span class="page-title">vd-cli</span>
+      <span class="page-subtitle">Vickery Digital App Factory — Command Reference</span>
+    </div>
+
+    <!-- Session Flow -->
+    <section class="section" id="session">
+      <div class="section-header">
+        <span class="section-title">Session Flow</span>
+      </div>
+
+      <div class="session-flow">
+        <div class="flow-title">Start of session</div>
+        <div class="flow-steps">
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd start</span>
+            <span class="flow-step-note">pull registry + retros, see what changed</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="session-flow">
+        <div class="flow-title">New app pipeline</div>
+        <div class="flow-steps">
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd register &lt;path&gt;</span>
+            <span class="flow-step-note">register once, use name everywhere</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd audit &lt;name&gt;</span>
+            <span class="flow-step-note">→ AUDIT.md + CLAUDE.md</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd" style="color:var(--dim);font-style:italic">fix blockers in Lovable</span>
+            <span class="flow-step-note">manual — work through AUDIT.md §3</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd opportunities &lt;name&gt;</span>
+            <span class="flow-step-note">→ OPPORTUNITIES.md</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd prompts &lt;name&gt;</span>
+            <span class="flow-step-note">→ PROMPTS.md (P1–P6)</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd scaffold &lt;AppName&gt;</span>
+            <span class="flow-step-note">→ Expo + Hono monorepo</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd migrate &lt;name&gt; &lt;dest&gt;</span>
+            <span class="flow-step-note">→ app-migrated/ with RN components</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd" style="color:var(--dim);font-style:italic">Claude Code P1–P6</span>
+            <span class="flow-step-note">manual — paste prompts in order</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd retro &lt;name&gt;</span>
+            <span class="flow-step-note">→ RETRO.md + archive</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="session-flow">
+        <div class="flow-title">Ship pipeline (run individually or via vd launch)</div>
+        <div class="flow-steps">
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd brand &lt;name&gt;</span>
+            <span class="flow-step-note">→ BRAND.md + brand-profile.json</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd listing &lt;name&gt;</span>
+            <span class="flow-step-note">→ APP_STORE/listing.md</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd screenshots &lt;name&gt;</span>
+            <span class="flow-step-note">→ APP_STORE/screenshots.md</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd press &lt;name&gt;</span>
+            <span class="flow-step-note">→ MARKETING/press-kit.md</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd social &lt;name&gt;</span>
+            <span class="flow-step-note">→ MARKETING/social.md</span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd help-articles &lt;name&gt;</span>
+            <span class="flow-step-note">→ HELP/*.md</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="session-flow">
+        <div class="flow-title">End of session</div>
+        <div class="flow-steps">
+          <div class="flow-step">
+            <span class="flow-step-cmd">vd save</span>
+            <span class="flow-step-note">commit + push vd-cli (registry, retros, CLI source)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Reference -->
+    <section class="section" id="quickref">
+      <div class="section-header">
+        <span class="section-title">Quick Reference</span>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <table class="ref-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="group-row"><td colspan="2">Git workflow</td></tr>
+            <tr><td>vd start [name]</td><td>Pull latest, show what changed — run at session start</td></tr>
+            <tr><td>vd save [name]</td><td>Stage all → prompt for message → commit + push</td></tr>
+            <tr><td>vd diff [name]</td><td>Show uncommitted changes (--staged for staged)</td></tr>
+            <tr><td>vd log [name]</td><td>Show recent commit history (-n 30 for more)</td></tr>
+
+            <tr class="group-row"><td colspan="2">Project management</td></tr>
+            <tr><td>vd register [path]</td><td>Register project in registry, use name in all commands after</td></tr>
+            <tr><td>vd projects</td><td>Dashboard — all apps + pipeline stage at a glance</td></tr>
+            <tr><td>vd status &lt;name&gt;</td><td>Detailed pipeline view — what's done, what's next</td></tr>
+
+            <tr class="group-row"><td colspan="2">Phase 1 — Build</td></tr>
+            <tr><td>vd audit &lt;name&gt;</td><td>Scan PWA for RN blockers → AUDIT.md + CLAUDE.md</td></tr>
+            <tr><td>vd opportunities &lt;name&gt;</td><td>35-check product scan → OPPORTUNITIES.md</td></tr>
+            <tr><td>vd prompts &lt;name&gt;</td><td>Generate P1–P6 Claude Code prompts → PROMPTS.md</td></tr>
+            <tr><td>vd scaffold &lt;AppName&gt;</td><td>Create Expo + Hono monorepo with full stack wired</td></tr>
+            <tr><td>vd migrate &lt;name&gt; &lt;dest&gt;</td><td>Auto-convert PWA components to React Native</td></tr>
+            <tr><td>vd retro &lt;name&gt;</td><td>Post-launch retrospective → RETRO.md + archive</td></tr>
+
+            <tr class="group-row"><td colspan="2">Phase 2 — Ship (requires ANTHROPIC_API_KEY)</td></tr>
+            <tr><td>vd brand &lt;name&gt;</td><td>Extract colors + fonts → BRAND.md + brand-profile.json</td></tr>
+            <tr><td>vd listing &lt;name&gt;</td><td>App Store listing copy (title, subtitle, keywords, description)</td></tr>
+            <tr><td>vd screenshots &lt;name&gt;</td><td>5 screenshot frame headlines + subheadlines</td></tr>
+            <tr><td>vd press &lt;name&gt;</td><td>Press kit — journalistic description, founder quote</td></tr>
+            <tr><td>vd social &lt;name&gt;</td><td>X thread, ProductHunt, LinkedIn, Instagram copy</td></tr>
+            <tr><td>vd help-articles &lt;name&gt;</td><td>Getting Started, FAQ, per-screen how-tos, billing guide</td></tr>
+            <tr><td>vd launch &lt;name&gt;</td><td>Run all Phase 2 commands → LAUNCH_PACK/</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Git commands -->
+    <section class="section" id="git-start">
+      <div class="section-header">
+        <span class="section-title">Git Workflow</span>
+        <span class="section-badge badge-git">git</span>
+      </div>
+
+      <div class="cmd-grid">
+        <div class="cmd-card full" id="git-start">
+          <div class="cmd-name">vd start [name]</div>
+          <div class="cmd-desc">Run at the start of every session. Pulls latest, shows new commits, warns about uncommitted work.<br>No argument → pulls the vd-cli repo (registry + retros). Pass a project name to pull a project repo.</div>
+          <div class="code-block"><span class="c-accent">vd start</span>                <span class="c-dim"># pull vd-cli repo</span>
+<span class="c-accent">vd start chorify</span>       <span class="c-dim"># pull chorify project repo</span></div>
+        </div>
+
+        <div class="cmd-card full" id="git-save">
+          <div class="cmd-name">vd save [name]</div>
+          <div class="cmd-desc">Stage all changes, prompt for a commit message, commit, and push. No argument → saves vd-cli repo.</div>
+          <div class="code-block"><span class="c-accent">vd save</span>                <span class="c-dim"># saves vd-cli (registry, retros, CLI source)</span>
+<span class="c-accent">vd save chorify</span>        <span class="c-dim"># saves chorify project repo</span>
+<span class="c-accent">vd save --no-push</span>      <span class="c-dim"># commit only, skip push</span></div>
+          <div class="tip"><strong>Prompt:</strong> What did you update? › <span style="color:var(--muted)">type your message, hit enter</span></div>
+        </div>
+
+        <div class="cmd-card" id="git-diff">
+          <div class="cmd-name">vd diff [name]</div>
+          <div class="cmd-desc">Show uncommitted changes.</div>
+          <div class="code-block"><span class="c-accent">vd diff</span>
+<span class="c-accent">vd diff chorify</span>
+<span class="c-accent">vd diff --staged</span>       <span class="c-dim"># staged only</span></div>
+        </div>
+
+        <div class="cmd-card" id="git-log">
+          <div class="cmd-name">vd log [name]</div>
+          <div class="cmd-desc">Show recent commit history.</div>
+          <div class="code-block"><span class="c-accent">vd log</span>                 <span class="c-dim"># last 15 commits</span>
+<span class="c-accent">vd log chorify</span>
+<span class="c-accent">vd log -n 30</span>           <span class="c-dim"># last 30 commits</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Management -->
+    <section class="section" id="register">
+      <div class="section-header">
+        <span class="section-title">Project Management</span>
+        <span class="section-badge badge-mgmt">management</span>
+      </div>
+
+      <div class="cmd-grid">
+        <div class="cmd-card full">
+          <div class="cmd-name">vd register [path]</div>
+          <div class="cmd-desc">Register a project once. Every command accepts the name instead of a path after this.</div>
+          <div class="code-block"><span class="c-accent">vd register ~/projects/chorify-pwa</span>
+<span class="c-dim"># prompts for: app name, bundle ID
+# stores in ~/vd-cli/projects.json
+# sync immediately:</span>
+<span class="c-accent">vd save</span>  <span class="c-dim"># commit + push registry update</span></div>
+        </div>
+
+        <div class="cmd-card" id="projects">
+          <div class="cmd-name">vd projects</div>
+          <div class="cmd-desc">Dashboard showing all registered apps and pipeline stage.</div>
+          <div class="code-block"><span class="c-accent">vd projects</span>
+<span class="c-dim">  chorify    ●●●○~○  Scaffold next
+  mono-line  ●●●●~●  Complete</span></div>
+        </div>
+
+        <div class="cmd-card" id="status">
+          <div class="cmd-name">vd status &lt;name&gt;</div>
+          <div class="cmd-desc">Detailed pipeline view for one app — shows which artifacts exist and what to run next.</div>
+          <div class="code-block"><span class="c-accent">vd status chorify</span>
+<span class="c-dim">  1 ✅ Audit    AUDIT.md found
+  2 ⬜ Prompts  No PROMPTS.md
+  Next: vd prompts chorify</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 1 -->
+    <section class="section" id="audit">
+      <div class="section-header">
+        <span class="section-title">Phase 1 — Build</span>
+        <span class="section-badge badge-phase1">phase 1</span>
+      </div>
+
+      <div class="cmd-grid">
+        <div class="cmd-card full">
+          <div class="cmd-name">vd audit &lt;name&gt;</div>
+          <div class="cmd-desc">The foundation command. Scans PWA source and produces two files every other command reads from. Answer the 3 context questions carefully — they feed into all content commands.</div>
+          <div class="code-block"><span class="c-accent">vd audit chorify</span>
+<span class="c-accent">vd audit chorify --skip-meta</span>   <span class="c-dim"># skip context questions</span>
+<span class="c-accent">vd audit chorify --html</span>        <span class="c-dim"># also generate HTML report</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>AUDIT.md</span> · <span>CLAUDE.md</span></div>
+        </div>
+
+        <div class="cmd-card" id="opportunities">
+          <div class="cmd-name">vd opportunities &lt;name&gt;</div>
+          <div class="cmd-desc">35-check product scan across 6 categories: Stickiness, UX, Monetization, Social, Personalization, Best Practices.</div>
+          <div class="code-block"><span class="c-accent">vd opportunities chorify</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>OPPORTUNITIES.md</span></div>
+        </div>
+
+        <div class="cmd-card" id="prompts">
+          <div class="cmd-name">vd prompts &lt;name&gt;</div>
+          <div class="cmd-desc">Generates 6 personalized Claude Code prompts (P1–P6) tailored to this app's specific blockers, routes, and components.</div>
+          <div class="code-block"><span class="c-accent">vd prompts chorify</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>PROMPTS.md</span></div>
+        </div>
+
+        <div class="cmd-card" id="scaffold">
+          <div class="cmd-name">vd scaffold &lt;AppName&gt;</div>
+          <div class="cmd-desc">Creates the full Expo + Hono monorepo with canonical VD stack pre-wired. Run from the parent directory.</div>
+          <div class="code-block"><span class="c-accent">cd ~/projects && vd scaffold Chorify</span>
+<span class="c-accent">vd scaffold Chorify --skip-env</span>  <span class="c-dim"># fill API keys later</span></div>
+        </div>
+
+        <div class="cmd-card" id="migrate">
+          <div class="cmd-name">vd migrate &lt;name&gt; &lt;dest&gt;</div>
+          <div class="cmd-desc">Auto-converts PWA components to React Native: HTML→RN elements, onClick→onPress, localStorage→AsyncStorage, router→expo-router.</div>
+          <div class="code-block"><span class="c-accent">vd migrate chorify ~/projects/chorify</span>
+<span class="c-accent">vd migrate chorify ~/projects/chorify --dry-run</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes to: <span>dest/app-migrated/</span></div>
+        </div>
+
+        <div class="cmd-card" id="retro">
+          <div class="cmd-name">vd retro &lt;name&gt;</div>
+          <div class="cmd-desc">Post-launch retrospective. Archived lessons automatically surface as warnings in future audits.</div>
+          <div class="code-block"><span class="c-accent">vd retro chorify</span>
+<span class="c-accent">vd retro chorify --analyze</span>      <span class="c-dim"># infer from git history</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>RETRO.md</span> → archived to <span>~/vd-cli/retrospectives/</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 2 -->
+    <section class="section" id="brand">
+      <div class="section-header">
+        <span class="section-title">Phase 2 — Ship</span>
+        <span class="section-badge badge-phase2">phase 2</span>
+      </div>
+
+      <div class="tip" style="margin-bottom:16px;">
+        <strong>Requires:</strong> <code style="font-family:var(--mono);font-size:10px;color:var(--muted)">ANTHROPIC_API_KEY</code> in your env (except <code style="font-family:var(--mono);font-size:10px;color:var(--muted)">vd brand</code>).
+        Add to ~/.zshrc: <code style="font-family:var(--mono);font-size:10px;color:var(--muted)">export ANTHROPIC_API_KEY=sk-ant-...</code>
+      </div>
+
+      <div class="cmd-grid">
+        <div class="cmd-card">
+          <div class="cmd-name">vd brand &lt;name&gt;</div>
+          <div class="cmd-desc">Extracts color palette + fonts from source. No API key required — pure static analysis. Classifies roles, computes WCAG contrast.</div>
+          <div class="code-block"><span class="c-accent">vd brand chorify</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>BRAND.md</span> · <span>brand-profile.json</span></div>
+        </div>
+
+        <div class="cmd-card" id="listing">
+          <div class="cmd-name">vd listing &lt;name&gt;</div>
+          <div class="cmd-desc">Complete App Store listing. Templates for character-constrained fields; Claude API for description + keywords.</div>
+          <div class="code-block"><span class="c-accent">vd listing chorify</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>APP_STORE/listing.md</span></div>
+        </div>
+
+        <div class="cmd-card" id="screenshots">
+          <div class="cmd-name">vd screenshots &lt;name&gt;</div>
+          <div class="cmd-desc">5 screenshot frame headlines + subheadlines + device spec sheet.</div>
+          <div class="code-block"><span class="c-accent">vd screenshots chorify</span>
+<span class="c-accent">vd screenshots chorify --frames 6</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>APP_STORE/screenshots.md</span></div>
+        </div>
+
+        <div class="cmd-card" id="press">
+          <div class="cmd-name">vd press &lt;name&gt;</div>
+          <div class="cmd-desc">Press kit with journalistic description, differentiator bullets, and founder quote (flagged for editing).</div>
+          <div class="code-block"><span class="c-accent">vd press chorify</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>MARKETING/press-kit.md</span></div>
+        </div>
+
+        <div class="cmd-card" id="social">
+          <div class="cmd-name">vd social &lt;name&gt;</div>
+          <div class="cmd-desc">X/Twitter thread, ProductHunt tagline + description, LinkedIn post, Instagram caption.</div>
+          <div class="code-block"><span class="c-accent">vd social chorify</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>MARKETING/social.md</span></div>
+        </div>
+
+        <div class="cmd-card" id="help-articles">
+          <div class="cmd-name">vd help-articles &lt;name&gt;</div>
+          <div class="cmd-desc">Getting Started, FAQ (12 Q&As), per-screen how-tos (up to 4), Account & Billing. Import into Notion, Intercom, or Zendesk.</div>
+          <div class="code-block"><span class="c-accent">vd help-articles chorify</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>HELP/*.md</span></div>
+        </div>
+
+        <div class="cmd-card full" id="launch">
+          <div class="cmd-name">vd launch &lt;name&gt;</div>
+          <div class="cmd-desc">Runs all Phase 2 commands in sequence and organizes everything into LAUNCH_PACK/. Skip individual steps with flags.</div>
+          <div class="code-block"><span class="c-accent">vd launch chorify</span>
+<span class="c-accent">vd launch chorify --skip-brand --skip-help</span>  <span class="c-dim"># App Store + marketing only</span></div>
+          <div class="cmd-output" style="margin-top:10px;">Writes: <span>LAUNCH_PACK/</span> — BRAND.md · APP_STORE/ · MARKETING/ · HELP/</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // Smooth scroll for sidebar links
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault()
+      const href = link.getAttribute('href')
+      const target = document.querySelector(href)
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+  })
+</script>
+</body>
+</html>
