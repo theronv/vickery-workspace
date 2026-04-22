@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vickery Digital — Story Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Fira+Code:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0f14;
+  --bg2: #13161d;
+  --surface: #181c26;
+  --surface2: #1e2333;
+  --border: #252b3b;
+  --border2: #2f3650;
+  --accent: #f97316;
+  --accent2: #fb923c;
+  --blue: #60a5fa;
+  --green: #34d399;
+  --purple: #a78bfa;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --text: #f0f2f8;
+  --muted: #6b7799;
+  --muted2: #9aa3c0;
+  --mono: 'Fira Code', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --display: 'Cabinet Grotesk', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.4;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 500px;
+  background: radial-gradient(ellipse, rgba(249,115,22,0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 22px 18px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.logo-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.logo-title {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.logo-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.history-header {
+  padding: 12px 16px 8px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 8px 12px;
+}
+
+.history-list::-webkit-scrollbar { width: 3px; }
+.history-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.history-empty {
+  padding: 16px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.history-item {
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 2px;
+}
+
+.history-item:hover { background: var(--surface); }
+.history-item.active { background: var(--surface2); }
+
+.history-item-name {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.clear-history-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s;
+  letter-spacing: 0.05em;
+}
+
+.clear-history-btn:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ── Main ── */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-header {
+  padding: 28px 40px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.main-title {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.main-title span { color: var(--accent); }
+
+.main-subtitle {
+  font-size: 13px;
+  color: var(--muted2);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* ── Input panel ── */
+.input-panel {
+  padding: 28px 40px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.input-field {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.input-field:focus { border-color: var(--accent); }
+.input-field::placeholder { color: var(--muted); }
+
+select.input-field {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7799' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.textarea-wrap {
+  position: relative;
+}
+
+textarea.input-field {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.char-count {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.input-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.clear-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.clear-btn:hover { border-color: var(--border2); color: var(--text); }
+
+.generate-btn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 800;
+  padding: 10px 22px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  letter-spacing: 0.01em;
+}
+
+.generate-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+.generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.spinner {
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Output area ── */
+.output-area {
+  flex: 1;
+  padding: 32px 40px 48px;
+  overflow-y: auto;
+}
+
+/* Welcome state */
+.welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 300px;
+}
+
+.welcome-inner {
+  text-align: center;
+  max-width: 440px;
+}
+
+.welcome-glyph {
+  font-size: 40px;
+  margin-bottom: 16px;
+  filter: grayscale(0.2);
+}
+
+.welcome-title {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.welcome-title span { color: var(--accent); }
+
+.welcome-body {
+  font-size: 13px;
+  color: var(--muted2);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.how-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.how-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.how-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.how-text {
+  font-size: 13px;
+  color: var(--muted2);
+  line-height: 1.5;
+}
+
+.how-text strong { color: var(--text); }
+
+/* Loading state */
+.loading-state {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+}
+
+.loading-state.visible { display: flex; }
+
+.loading-pulse {
+  display: flex;
+  gap: 6px;
+}
+
+.pulse-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-bounce 1.2s ease-in-out infinite;
+}
+
+.pulse-dot:nth-child(2) { animation-delay: 0.2s; }
+.pulse-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pulse-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.loading-label {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.loading-substep {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+/* ── Results ── */
+.results { display: flex; flex-direction: column; gap: 28px; }
+
+/* Epic header */
+.epic-header {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.epic-meta {
+  flex: 1;
+}
+
+.epic-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--purple);
+  margin-bottom: 6px;
+}
+
+.epic-name {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.epic-summary {
+  font-size: 13px;
+  color: var(--muted2);
+  line-height: 1.5;
+}
+
+.epic-stats {
+  display: flex;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.stat-pill {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 14px;
+  text-align: center;
+}
+
+.stat-num {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.stat-lbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 3px;
+  letter-spacing: 0.08em;
+}
+
+/* Stories section */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-title {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+}
+
+.copy-all-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.copy-all-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.stories-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Story card */
+.story-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.story-card:hover { border-color: var(--border2); }
+
+.story-card-header {
+  padding: 14px 18px 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.story-card-header:hover { background: rgba(255,255,255,0.01); }
+
+.story-id {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.story-statement {
+  flex: 1;
+}
+
+.story-sentence {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.story-sentence .as { color: var(--blue); font-weight: 500; }
+.story-sentence .want { color: var(--green); font-weight: 500; }
+.story-sentence .so { color: var(--purple); font-weight: 500; }
+
+.story-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.priority-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.priority-badge.high { background: rgba(249,115,22,0.12); color: var(--accent); border: 1px solid rgba(249,115,22,0.25); }
+.priority-badge.medium { background: rgba(96,165,250,0.1); color: var(--blue); border: 1px solid rgba(96,165,250,0.2); }
+.priority-badge.low { background: rgba(107,119,153,0.12); color: var(--muted2); border: 1px solid var(--border2); }
+
+.expand-icon {
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.story-card.expanded .expand-icon { transform: rotate(180deg); }
+
+.story-card-body {
+  display: none;
+  padding: 16px 18px 18px;
+}
+
+.story-card.expanded .story-card-body { display: block; }
+
+.ac-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.ac-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ac-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ac-check {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  background: var(--surface2);
+  flex-shrink: 0;
+  margin-top: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: transparent;
+}
+
+.ac-check.checked {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.ac-text {
+  font-size: 13px;
+  color: var(--muted2);
+  line-height: 1.5;
+  transition: color 0.15s;
+}
+
+.ac-item.done .ac-text {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.story-card-footer {
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-copy-story {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 11px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.btn-copy-story:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Export bar */
+.export-bar {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.export-label {
+  font-size: 13px;
+  color: var(--muted2);
+}
+
+.export-label strong { color: var(--text); }
+
+.export-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.export-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.export-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.export-btn.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 10px 16px;
+  border-radius: 7px;
+  z-index: 200;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.2s;
+  pointer-events: none;
+  letter-spacing: 0.04em;
+}
+
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.modal-filename {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  letter-spacing: 0.06em;
+}
+
+.modal-close {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.modal-close:hover { border-color: var(--red); color: var(--red); }
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.modal-body::-webkit-scrollbar { width: 3px; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.md-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  padding: 14px 16px;
+  resize: none;
+  outline: none;
+  letter-spacing: 0.01em;
+}
+
+.md-textarea::selection { background: rgba(249,115,22,0.25); }
+
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.modal-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-badge">Vickery Digital</div>
+      <div class="logo-title">Story Generator</div>
+      <div class="logo-sub">Epic → Stories → Acceptance Criteria</div>
+    </div>
+
+    <div class="history-header">History</div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty" id="historyEmpty">No sessions yet.<br>Generate your first epic.</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="clear-history-btn" onclick="clearHistory()">Clear history</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="main-header">
+      <div class="main-title">Turn an epic into <span>ready-to-build</span> stories.</div>
+      <div class="main-subtitle">Paste an epic description → get user stories + acceptance criteria, formatted and ready to drop into Linear or Notion.</div>
+    </div>
+
+    <div class="input-panel">
+      <div class="input-row" style="grid-template-columns:1fr 1fr 140px 100px">
+        <div class="input-group">
+          <div class="input-label">App / Project name</div>
+          <input class="input-field" type="text" id="appName" placeholder="e.g. MonoLine" />
+        </div>
+        <div class="input-group">
+          <div class="input-label">Epic name <span style="color:var(--muted);font-size:9px">(board label)</span></div>
+          <input class="input-field" type="text" id="epicNameInput" placeholder="e.g. Unity Ads Integration" />
+        </div>
+        <div class="input-group">
+          <div class="input-label">Target user</div>
+          <input class="input-field" type="text" id="targetUser" placeholder="e.g. indie developer" />
+        </div>
+        <div class="input-group">
+          <div class="input-label">Story prefix <span style="color:var(--muted);font-size:9px">(e.g. AA)</span></div>
+          <input class="input-field" type="text" id="storyPrefix" placeholder="US" maxlength="6" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+        </div>
+      </div>
+
+      <div class="input-group" style="margin-bottom:0">
+        <div class="input-label">Epic description</div>
+        <div class="textarea-wrap">
+          <textarea class="input-field" id="epicInput" placeholder="Describe the epic. Include the goal, any known constraints, and the context. The more specific, the better the stories.&#10;&#10;e.g. Users need to be able to manage their account — update display name, change email, delete their account, and manage notification preferences." oninput="updateCharCount()"></textarea>
+          <span class="char-count" id="charCount">0</span>
+        </div>
+      </div>
+
+      <div class="input-controls">
+        <button class="clear-btn" onclick="clearInput()">Clear</button>
+        <button class="generate-btn" id="generateBtn" onclick="runGeneration()">
+          Generate Stories →
+        </button>
+      </div>
+    </div>
+
+    <div class="output-area" id="outputArea">
+
+      <!-- Welcome -->
+      <div class="welcome" id="welcomeState">
+        <div class="welcome-inner">
+          <div class="welcome-glyph">📋</div>
+          <div class="welcome-title">Stories that <span>actually ship.</span></div>
+          <div class="welcome-body">Paste an epic above and get a full breakdown of user stories with acceptance criteria — structured, prioritized, and ready for your PM tool.</div>
+          <div class="how-steps">
+            <div class="how-step">
+              <div class="how-num">1</div>
+              <div class="how-text"><strong>Name the epic</strong> — describe the feature area or goal in plain language.</div>
+            </div>
+            <div class="how-step">
+              <div class="how-num">2</div>
+              <div class="how-text"><strong>Hit Generate</strong> — Claude breaks it into 4–8 user stories with full AC.</div>
+            </div>
+            <div class="how-step">
+              <div class="how-num">3</div>
+              <div class="how-text"><strong>Check off and export</strong> — tick AC items as you build, export to Markdown or clipboard.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading-state" id="loadingState">
+        <div class="loading-pulse">
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+          <div class="pulse-dot"></div>
+        </div>
+        <div class="loading-label" id="loadingLabel">Breaking down the epic…</div>
+        <div class="loading-substep" id="loadingSubstep">Identifying user roles and core actions</div>
+      </div>
+
+      <!-- Results -->
+      <div class="results" id="resultsContainer" style="display:none"></div>
+
+    </div>
+  </main>
+
+</div>
+
+<!-- Markdown Modal -->
+<div class="modal-overlay" id="mdModal" onclick="handleModalOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Markdown Export</div>
+        <div class="modal-filename" id="mdModalFilename"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="md-textarea" id="mdModalContent" readonly onclick="this.select()"></textarea>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-hint">Click text area to select all &middot; Cmd+C / Ctrl+C to copy</div>
+      <div class="modal-actions">
+        <button class="export-btn" id="boardJsonBtn" onclick="copyBoardJsonFromModal()" style="display:none">Copy as Board JSON</button>
+        <button class="export-btn" onclick="copyModalContent()" id="copyMdBtn">Copy Markdown</button>
+        <button class="export-btn" onclick="closeModal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let sessions = JSON.parse(localStorage.getItem('vd_stories_sessions') || '[]');
+let activeSession = null;
+
+const LOADING_STEPS = [
+  ['Breaking down the epic…', 'Identifying user roles and core actions'],
+  ['Drafting user stories…', 'Applying As a / I want / So that structure'],
+  ['Writing acceptance criteria…', 'Building Given / When / Then conditions'],
+  ['Prioritizing stories…', 'Scoring by impact and dependency order'],
+  ['Finalizing output…', 'Formatting for export'],
+];
+
+// ── Init ───────────────────────────────────────────────────────────────────
+renderHistory();
+
+// ── Input helpers ──────────────────────────────────────────────────────────
+function updateCharCount() {
+  const v = document.getElementById('epicInput').value;
+  document.getElementById('charCount').textContent = v.length;
+}
+
+function clearInput() {
+  document.getElementById('epicInput').value = '';
+  document.getElementById('appName').value = '';
+  document.getElementById('epicNameInput').value = '';
+  document.getElementById('targetUser').value = '';
+  document.getElementById('storyPrefix').value = '';
+  updateCharCount();
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function saveSession(session) {
+  sessions.unshift(session);
+  if (sessions.length > 30) sessions = sessions.slice(0, 30);
+  localStorage.setItem('vd_stories_sessions', JSON.stringify(sessions));
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+
+  if (sessions.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const existingItems = list.querySelectorAll('.history-item');
+  existingItems.forEach(el => el.remove());
+
+  sessions.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'history-item' + (activeSession && activeSession.id === s.id ? ' active' : '');
+    div.innerHTML = `
+      <div class="history-item-name">${esc(s.epicName || s.appName || 'Untitled')}</div>
+      <div class="history-item-meta">${s.storyCount} stories · ${s.date}</div>
+    `;
+    div.onclick = () => loadSession(s);
+    list.appendChild(div);
+  });
+}
+
+function loadSession(session) {
+  activeSession = session;
+  renderHistory();
+
+  document.getElementById('welcomeState').style.display = 'none';
+  document.getElementById('loadingState').className = 'loading-state';
+  document.getElementById('resultsContainer').style.display = 'flex';
+
+  renderResults(session);
+}
+
+function clearHistory() {
+  if (!confirm('Clear all session history?')) return;
+  sessions = [];
+  activeSession = null;
+  localStorage.removeItem('vd_stories_sessions');
+  renderHistory();
+  showWelcome();
+}
+
+function showWelcome() {
+  document.getElementById('welcomeState').style.display = 'flex';
+  document.getElementById('resultsContainer').style.display = 'none';
+}
+
+// ── Generation ─────────────────────────────────────────────────────────────
+async function runGeneration() {
+  const epic = document.getElementById('epicInput').value.trim();
+  const appName = document.getElementById('appName').value.trim() || 'the app';
+  const targetUser = document.getElementById('targetUser').value.trim() || 'the user';
+
+  if (!epic) { document.getElementById('epicInput').focus(); return; }
+
+  document.getElementById('welcomeState').style.display = 'none';
+  document.getElementById('resultsContainer').style.display = 'none';
+  document.getElementById('loadingState').className = 'loading-state visible';
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('generateBtn').innerHTML = '<span class="spinner"></span> Generating…';
+
+  let stepIdx = 0;
+  const stepTimer = setInterval(() => {
+    stepIdx = (stepIdx + 1) % LOADING_STEPS.length;
+    document.getElementById('loadingLabel').textContent = LOADING_STEPS[stepIdx][0];
+    document.getElementById('loadingSubstep').textContent = LOADING_STEPS[stepIdx][1];
+  }, 2200);
+
+  const systemPrompt = `You are a senior product manager who writes precise, shippable user stories for indie mobile app projects. You know that vague stories kill sprints.
+
+You always follow these rules:
+- User stories use strict format: "As a [role], I want [action], so that [outcome]."
+- Acceptance criteria use plain English — no Given/When/Then unless it genuinely aids clarity.
+- Each AC item is a single testable condition, phrased as a statement (not a question).
+- AC items are written from the perspective of what a QA engineer would actually verify.
+- Priority is HIGH (ships V1), MEDIUM (ships V1 if time allows), or LOW (post-launch).
+- Story IDs follow the pattern US-001, US-002, etc.
+- Produce 4–8 stories. No more, no less unless the epic genuinely requires it.
+- Every story must be independently testable and deliverable.
+
+RESPOND ONLY WITH VALID JSON. No markdown, no backticks, no preamble.
+
+JSON structure:
+{
+  "epicName": "short title for this epic (max 6 words)",
+  "epicSummary": "one sentence describing the scope of this epic",
+  "stories": [
+    {
+      "id": "US-001",
+      "role": "the user type",
+      "action": "what they want to do",
+      "outcome": "the benefit / why",
+      "priority": "HIGH" | "MEDIUM" | "LOW",
+      "acceptanceCriteria": [
+        "Criterion written as a testable statement.",
+        ...
+      ]
+    }
+  ]
+}`;
+
+  // Read API key from parent frame (same-origin workspace) or local window
+  function getApiKey() {
+    try { if (window.parent !== window) return window.parent.VD_API_KEY || ''; } catch(e) {}
+    return window.VD_API_KEY || '';
+  }
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    clearInterval(stepTimer);
+    throw new Error('No API key — add your Anthropic key to config.js in the workspace root.');
+  }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: `App: ${appName}\nTarget user: ${targetUser}\n\nEpic:\n${epic}`
+        }]
+      })
+    });
+
+    clearInterval(stepTimer);
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || 'API error ' + response.status);
+    }
+
+    const data = await response.json();
+    const raw = data.content.map(b => b.text || '').join('').trim();
+    const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const result = JSON.parse(clean);
+
+    const prefix = document.getElementById('storyPrefix').value.trim().toUpperCase() || 'US';
+    // Re-number story IDs with user prefix
+    const storiesWithPrefix = result.stories.map((s, i) => ({
+      ...s,
+      id: `${prefix}-${String(i + 1).padStart(3, '0')}`
+    }));
+    const session = {
+      id: Date.now(),
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      appName,
+      epicName: result.epicName,
+      epicLabel: document.getElementById('epicNameInput').value.trim() || result.epicName,
+      storyPrefix: prefix,
+      epicSummary: result.epicSummary,
+      storyCount: storiesWithPrefix.length,
+      stories: storiesWithPrefix,
+      epicRaw: epic
+    };
+
+    saveSession(session);
+    activeSession = session;
+    renderHistory();
+
+    document.getElementById('loadingState').className = 'loading-state';
+    document.getElementById('resultsContainer').style.display = 'flex';
+    renderResults(session);
+
+  } catch (err) {
+    clearInterval(stepTimer);
+    document.getElementById('loadingState').className = 'loading-state';
+    document.getElementById('resultsContainer').style.display = 'flex';
+    document.getElementById('resultsContainer').innerHTML = `
+      <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:24px;color:var(--red);font-family:var(--mono);font-size:12px;line-height:1.6;">
+        <strong>Generation failed</strong><br>${esc(err.message)}
+      </div>`;
+  } finally {
+    document.getElementById('generateBtn').disabled = false;
+    document.getElementById('generateBtn').innerHTML = 'Generate Stories →';
+  }
+}
+
+// ── Render results ─────────────────────────────────────────────────────────
+function renderResults(session) {
+  const container = document.getElementById('resultsContainer');
+  const highCount = session.stories.filter(s => s.priority === 'HIGH').length;
+  const medCount = session.stories.filter(s => s.priority === 'MEDIUM').length;
+
+  let html = `
+    <div class="epic-header">
+      <div class="epic-meta">
+        <div class="epic-label">Epic</div>
+        <div class="epic-name">${esc(session.epicName)}</div>
+        ${session.epicLabel && session.epicLabel !== session.epicName ? `<div style="margin:4px 0 4px;display:inline-flex;align-items:center;gap:6px"><span style="font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);color:var(--accent);padding:2px 8px;border-radius:3px">🏷 ${esc(session.epicLabel)}</span></div>` : ''}
+        <div class="epic-summary">${esc(session.epicSummary)}</div>
+      </div>
+      <div class="epic-stats">
+        <div class="stat-pill">
+          <div class="stat-num">${session.storyCount}</div>
+          <div class="stat-lbl">Stories</div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-num">${highCount}</div>
+          <div class="stat-lbl">V1 High</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-header">
+        <div class="section-title">
+          User Stories
+          <span class="section-tag">${session.appName}</span>
+        </div>
+        <button class="copy-all-btn" onclick="copyAll(${session.id})">Copy all as Markdown</button>
+      </div>
+      <div class="stories-grid">
+  `;
+
+  session.stories.forEach((story, i) => {
+    const acItems = story.acceptanceCriteria.map((ac, j) => `
+      <li class="ac-item" id="ac-${session.id}-${i}-${j}">
+        <div class="ac-check" onclick="toggleAC(this, ${session.id}, ${i}, ${j})"></div>
+        <span class="ac-text">${esc(ac)}</span>
+      </li>
+    `).join('');
+
+    html += `
+      <div class="story-card" id="card-${session.id}-${i}">
+        <div class="story-card-header" onclick="toggleCard(${session.id}, ${i})">
+          <div class="story-id">${esc(story.id)}</div>
+          <div class="story-statement">
+            <div class="story-sentence">
+              <span class="as">As a ${esc(story.role)},</span>
+              <span class="want"> I want ${esc(story.action)},</span>
+              <span class="so"> so that ${esc(story.outcome)}.</span>
+            </div>
+          </div>
+          <div class="story-actions">
+            <span class="priority-badge ${story.priority.toLowerCase()}">${story.priority}</span>
+            <span class="expand-icon">▾</span>
+          </div>
+        </div>
+        <div class="story-card-body">
+          <div class="ac-label">Acceptance Criteria · ${story.acceptanceCriteria.length} items</div>
+          <ul class="ac-list">${acItems}</ul>
+        </div>
+        <div class="story-card-footer">
+          <button class="btn-copy-story" onclick="copyStory(${session.id}, ${i})">Copy story</button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+      </div>
+    </div>
+
+    <div class="export-bar">
+      <div class="export-label"><strong>Export this epic</strong> — Board JSON imports directly into your Kanban app. Markdown for Linear, Notion, or GitHub.</div>
+      <div class="export-btns">
+        <button class="export-btn" onclick="exportMarkdown(${session.id}, 'board')">Export Board JSON</button>
+        <button class="export-btn" onclick="exportMarkdown(${session.id})">View Markdown</button>
+        <button class="export-btn primary" onclick="copyAll(${session.id})">Copy Markdown</button>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// ── Card interactions ──────────────────────────────────────────────────────
+function toggleCard(sessionId, storyIdx) {
+  const card = document.getElementById(`card-${sessionId}-${storyIdx}`);
+  card.classList.toggle('expanded');
+}
+
+function toggleAC(el, sessionId, storyIdx, acIdx) {
+  el.classList.toggle('checked');
+  el.textContent = el.classList.contains('checked') ? '✓' : '';
+  const item = document.getElementById(`ac-${sessionId}-${storyIdx}-${acIdx}`);
+  item.classList.toggle('done');
+}
+
+// ── Copy / export ──────────────────────────────────────────────────────────
+function buildMarkdown(session) {
+  let md = `# Epic: ${session.epicName}\n\n`;
+  md += `> ${session.epicSummary}\n\n`;
+  md += `**App:** ${session.appName}  \n`;
+  md += `**Stories:** ${session.storyCount}  \n\n---\n\n`;
+
+  session.stories.forEach(story => {
+    md += `## ${story.id} · [${story.priority}]\n\n`;
+    md += `**As a** ${story.role}, **I want** ${story.action}, **so that** ${story.outcome}.\n\n`;
+    md += `### Acceptance Criteria\n\n`;
+    story.acceptanceCriteria.forEach(ac => {
+      md += `- [ ] ${ac}\n`;
+    });
+    md += '\n';
+  });
+
+  return md;
+}
+
+function buildStoryMarkdown(session, storyIdx) {
+  const story = session.stories[storyIdx];
+  let md = `## ${story.id} · [${story.priority}]\n\n`;
+  md += `**As a** ${story.role}, **I want** ${story.action}, **so that** ${story.outcome}.\n\n`;
+  md += `### Acceptance Criteria\n\n`;
+  story.acceptanceCriteria.forEach(ac => {
+    md += `- [ ] ${ac}\n`;
+  });
+  return md;
+}
+
+function buildBoardJSON(session) {
+  // Generate stable UUIDs via crypto or fallback
+  function uuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  const now = new Date().toISOString();
+  const priorityMap = { HIGH: 'high', MEDIUM: 'medium', LOW: 'low' };
+
+  // Build columns matching the export format
+  const colBacklog  = { id: uuid(), order: 0, title: 'Backlog',        wipLimit: null, collapsed: false };
+  const colWorking  = { id: uuid(), order: 1, title: 'Working on it',  wipLimit: null, collapsed: false };
+  const colTesting  = { id: uuid(), order: 2, title: 'Testing',        wipLimit: 3,    collapsed: false };
+  const colDone     = { id: uuid(), order: 3, title: 'Done',           wipLimit: null, collapsed: false };
+
+  // Epic label — readable name shown as tag on every card
+  const epicLabelId = uuid();
+  const labelName = session.epicLabel || session.epicName;
+  const epicLabel = {
+    id: epicLabelId,
+    name: labelName,
+    color: '22 100% 53%'  // orange accent
+  };
+
+  // Cards only go to Backlog — caller must merge into their existing board
+  // We use a sentinel columnId '__backlog__' so the import handler
+  // can map it to whichever column is order:0 on the target board
+  const cards = session.stories.map((story, i) => ({
+    id: uuid(),
+    size: story.priority === 'HIGH' ? 'M' : 'S',
+    tags: [epicLabelId],
+    order: i,
+    title: `${story.id} · ${story.action.charAt(0).toUpperCase() + story.action.slice(1)}`,
+    dueDate: null,
+    columnId: '__backlog__',
+    comments: [],
+    priority: priorityMap[story.priority] || 'medium',
+    assignees: [],
+    checklist: story.acceptanceCriteria.map((ac) => ({
+      id: uuid(),
+      text: ac,
+      completed: false
+    })),
+    createdAt: now,
+    updatedAt: now,
+    description: `**As a** ${story.role}, **I want** ${story.action}, **so that** ${story.outcome}.`,
+    lastEditedBy: ''
+  }));
+
+  return {
+    epicLabel,
+    cards,
+    _importMeta: {
+      epicName: labelName,
+      appName: session.appName,
+      storyPrefix: session.storyPrefix || 'US',
+      generatedAt: now,
+      instructions: 'Add epicLabel to your board labels array. Map columnId __backlog__ to your Backlog column id. Append cards to your board cards array.'
+    }
+  };
+}
+
+function copyToClipboard(text, successMsg) {
+  // Modern async API (HTTPS / served pages)
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast(successMsg))
+      .catch(() => fallbackCopy(text, successMsg));
+  } else {
+    fallbackCopy(text, successMsg);
+  }
+}
+
+function fallbackCopy(text, successMsg) {
+  // Works on file:// and older browsers
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    const ok = document.execCommand('copy');
+    showToast(ok ? successMsg : 'Copy failed — use Download instead');
+  } catch (e) {
+    showToast('Copy failed — use Download instead');
+  }
+  document.body.removeChild(ta);
+}
+
+function copyAll(sessionId) {
+  const session = sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  copyToClipboard(buildMarkdown(session), 'Copied all stories as Markdown');
+}
+
+function copyStory(sessionId, storyIdx) {
+  const session = sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  copyToClipboard(buildStoryMarkdown(session, storyIdx), `Copied ${session.stories[storyIdx].id}`);
+}
+
+function exportMarkdown(sessionId, mode) {
+  const session = sessions.find(s => s.id === sessionId);
+  if (!session) return;
+
+  const isBoardMode = mode === 'board';
+  const content = isBoardMode
+    ? JSON.stringify(buildBoardJSON(session), null, 2)
+    : buildMarkdown(session);
+
+  const filename = isBoardMode
+    ? session.epicName.toLowerCase().replace(/\s+/g, '-') + '-board.json'
+    : session.epicName.toLowerCase().replace(/\s+/g, '-') + '-stories.md';
+
+  document.getElementById('mdModalFilename').textContent = filename;
+  document.getElementById('mdModalContent').value = content;
+  document.getElementById('mdModal').classList.add('open');
+  document.getElementById('mdModal').dataset.mode = isBoardMode ? 'board' : 'md';
+  document.getElementById('boardJsonBtn').style.display = isBoardMode ? 'none' : 'inline-flex';
+  document.getElementById('copyMdBtn').textContent = isBoardMode ? 'Copy JSON' : 'Copy Markdown';
+
+  setTimeout(() => {
+    const ta = document.getElementById('mdModalContent');
+    ta.focus();
+    ta.select();
+  }, 50);
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function openModal(sessionId) {
+  exportMarkdown(sessionId);
+}
+
+function closeModal() {
+  document.getElementById('mdModal').classList.remove('open');
+}
+
+function handleModalOverlayClick(e) {
+  if (e.target === document.getElementById('mdModal')) closeModal();
+}
+
+function copyModalContent() {
+  const text = document.getElementById('mdModalContent').value;
+  const mode = document.getElementById('mdModal').dataset.mode;
+  copyToClipboard(text, mode === 'board' ? 'Copied Board JSON' : 'Copied Markdown');
+}
+
+function copyBoardJsonFromModal() {
+  // re-open in board mode from within md modal
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+</script>
+</body>
+</html>

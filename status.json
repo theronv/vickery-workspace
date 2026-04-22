@@ -4,41 +4,53 @@
   "apps": {
     "monoline": {
       "name": "MonoLine",
-      "phase": "Stage 3 — P4",
-      "next": "Run vd prompt ux on HomeScreen streak display",
-      "stage": 3,
+      "stage": "alpha",
+      "next": "Complete TestFlight review cycle — resolve final crash reports before App Store submission",
       "repo": "https://github.com/theronv/monoline",
       "links": {
-        "vercel":     "https://vercel.com/theronv/monoline-api",
-        "turso":      "https://app.turso.tech",
-        "clerk":      "https://dashboard.clerk.com",
-        "lovable":    "https://lovable.dev",
-        "sentry":     "https://sentry.io",
+        "vercel": "https://vercel.com/theronv/monoline-api",
+        "turso": "https://app.turso.tech",
+        "clerk": "https://dashboard.clerk.com",
+        "lovable": "https://lovable.dev",
+        "sentry": "https://sentry.io",
         "revenuecat": "https://app.revenuecat.com",
-        "app_store":  "https://appstoreconnect.apple.com"
+        "app_store": "https://appstoreconnect.apple.com"
       }
     },
     "chorify": {
       "name": "Chorify",
-      "phase": "Stage 4 — App Store",
-      "next": "Monitor App Store review",
-      "stage": 4,
-      "repo": "https://github.com/theronv/chorify",
+      "stage": "alpha",
+      "next": "Testing",
+      "repo": "https://github.com/theronv/new-chorify",
       "links": {
-        "vercel":     "https://vercel.com/theronv/chorify-api",
-        "turso":      "https://app.turso.tech",
-        "clerk":      "https://dashboard.clerk.com",
-        "lovable":    "https://lovable.dev",
-        "sentry":     "https://sentry.io",
+        "vercel": "https://vercel.com/theronv/chorify-api",
+        "turso": "https://app.turso.tech",
+        "clerk": "https://dashboard.clerk.com",
+        "lovable": "https://lovable.dev",
+        "sentry": "https://sentry.io",
         "revenuecat": "https://app.revenuecat.com",
-        "app_store":  "https://appstoreconnect.apple.com"
+        "app_store": "https://appstoreconnect.apple.com"
       }
+    },
+    "bloomkeep": {
+      "name": "BloomKeep",
+      "stage": "beta",
+      "next": "Adding features and QA testing",
+      "repo": "https://github.com/theronv/my-plantly",
+      "links": {}
+    },
+    "wordduel": {
+      "name": "WordDuel",
+      "stage": "beta",
+      "next": "Features and QA",
+      "repo": "https://github.com/theronv/wordlefriends",
+      "links": {}
     }
   },
   "tools": {
-    "kanban":     "https://my-kanbanflow.lovable.app/",
-    "claude":     "https://claude.ai/project/[your-project-id]",
+    "kanban": "https://my-kanbanflow.lovable.app/",
+    "claude": "https://claude.ai/project/[your-project-id]",
     "cloudflare": "https://dash.cloudflare.com",
-    "eas":        "https://expo.dev"
+    "eas": "https://expo.dev"
   }
 }
