@@ -1,14 +1,977 @@
+<!--
+  WORKSPACE.VICKERYDIGITAL.COM
+  Personal ops dashboard — no framework, no build step.
+
+  DEPLOY
+    Cloudflare Pages (recommended):
+      Push to GitHub → Cloudflare Pages
+      Build command: (leave blank)
+      Output directory: /
+
+    Manual deploy:
+      wrangler pages deploy . --project-name workspace
+
+  LOCAL TESTING
+    fetch() requires HTTP — open via a local server, not file://
+    python3 -m http.server 8080   then visit http://localhost:8080
+    OR: VS Code → "Open with Live Server"
+
+  SETUP
+    1. cp config.example.js config.js
+    2. Paste your Anthropic API key into config.js
+    3. Edit status.json to reflect current app state
+    4. Deploy
+-->
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vickery Digital — Workspace</title>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VD / Workspace</title>
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* ─── RESET ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button { font-family: inherit; cursor: pointer; }
+    a { text-decoration: none; }
+
+    /* ─── TOKENS ─────────────────────────────────────────── */
+    :root {
+      --bg:          #0d0f14;
+      --surface:     #1a1d24;
+      --surface-2:   #21252e;
+      --surface-3:   #262b35;
+      --orange:      #f97316;
+      --orange-10:   rgba(249,115,22,.10);
+      --orange-20:   rgba(249,115,22,.20);
+      --text:        #f1f0eb;
+      --muted:       #6b7280;
+      --muted-40:    rgba(107,114,128,.4);
+      --border:      #2a2e38;
+      --border-2:    #333844;
+      --ff-display:  'Cabinet Grotesk', sans-serif;
+      --ff-body:     'DM Sans', sans-serif;
+      --ff-mono:     'Fira Code', monospace;
+      --radius:      7px;
+      --radius-sm:   5px;
+    }
+
+    /* ─── BASE ───────────────────────────────────────────── */
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--ff-body);
+      font-size: 13.5px;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar          { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track    { background: transparent; }
+    ::-webkit-scrollbar-thumb    { background: var(--border-2); border-radius: 3px; }
+
+    /* ─── LAYOUT ─────────────────────────────────────────── */
+    #workspace {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 18px 24px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ─── ZONE 1: FOCUS STRIP ────────────────────────────── */
+    #focus-strip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--orange);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      display: grid;
+      grid-template-columns: 230px 1fr auto;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .focus-app    { font-family: var(--ff-display); font-size: 21px; font-weight: 800; color: var(--orange); line-height: 1.15; }
+    .focus-phase  { font-family: var(--ff-mono); font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    .focus-next-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; }
+    .focus-next-text  { font-size: 14.5px; font-weight: 500; color: var(--text); }
+
+    .focus-meta { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
+    .focus-updated { font-family: var(--ff-mono); font-size: 10.5px; color: var(--muted); }
+
+    .btn-session {
+      background: var(--orange);
+      color: #000;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+    .btn-session:hover { opacity: .82; }
+
+    /* ─── ZONE 2: TOOL LAUNCHER ──────────────────────────── */
+    #launcher {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .cat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      margin-bottom: 7px;
+      padding-left: 1px;
+    }
+
+    .cat-links { display: flex; flex-direction: column; gap: 3px; }
+
+    .tool-link {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 11px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      transition: border-color .13s, background .13s;
+    }
+    .tool-link:hover { border-color: var(--orange); background: var(--orange-10); }
+
+    .tool-icon { width: 18px; text-align: center; flex-shrink: 0; font-size: 13px; }
+    .tool-badge {
+      margin-left: auto;
+      font-size: 9.5px;
+      font-family: var(--ff-mono);
+      color: var(--orange);
+      background: var(--orange-10);
+      padding: 1px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    /* ─── ZONE 3: ACCORDION TOOLS ────────────────────────── */
+    #tools { display: flex; flex-direction: column; gap: 6px; }
+
+    .acc-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .acc-header {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 13px 18px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .12s;
+    }
+    .acc-header:hover { background: var(--surface-2); }
+
+    .acc-chevron {
+      width: 15px; height: 15px;
+      color: var(--muted);
+      transition: transform .18s;
+      flex-shrink: 0;
+    }
+    .acc-item.open .acc-chevron { transform: rotate(90deg); }
+
+    .acc-title    { font-family: var(--ff-display); font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+    .acc-subtitle { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+
+    .acc-body {
+      display: none;
+      padding: 4px 18px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .acc-item.open .acc-body { display: block; }
+
+    /* ─── FORM ELEMENTS ──────────────────────────────────── */
+    .form-block  { margin-top: 14px; }
+    .form-label  { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 5px; }
+
+    select, input[type="text"], textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--ff-body);
+      font-size: 13px;
+      padding: 7px 11px;
+      outline: none;
+      transition: border-color .13s;
+      -webkit-appearance: none;
+    }
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+    textarea { resize: vertical; min-height: 78px; }
+    select:focus, input:focus, textarea:focus { border-color: var(--orange); }
+
+    .form-grid { display: grid; gap: 10px; margin-top: 12px; }
+    .form-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+
+    /* ─── BUTTONS ────────────────────────────────────────── */
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 13px;
+      background: var(--orange);
+      color: #000;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: opacity .13s;
+    }
+    .btn-action:hover  { opacity: .82; }
+    .btn-action:disabled { opacity: .35; cursor: not-allowed; }
+
+    .btn-copy-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 13px;
+      background: var(--surface-3);
+      color: var(--text);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-sm);
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: border-color .13s;
+    }
+    .btn-copy-inline:hover { border-color: var(--orange); color: var(--orange); }
+    .btn-copy-inline.copied { color: var(--orange); border-color: var(--orange); }
+
+    /* ─── OUTPUT BLOCK ───────────────────────────────────── */
+    .output-block {
+      margin-top: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 13px 14px;
+      position: relative;
+    }
+    .output-pre {
+      font-family: var(--ff-mono);
+      font-size: 11.5px;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.65;
+      padding-right: 60px;
+    }
+    .btn-copy-float {
+      position: absolute;
+      top: 9px; right: 9px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 10.5px;
+      color: var(--muted);
+      transition: color .12s, border-color .12s;
+    }
+    .btn-copy-float:hover   { color: var(--text); border-color: var(--muted); }
+    .btn-copy-float.copied  { color: var(--orange); border-color: var(--orange); }
+
+    /* ─── STATUS / WARNING BANNERS ───────────────────────── */
+    .warn-banner {
+      margin-top: 13px;
+      padding: 9px 13px;
+      background: rgba(249,115,22,.07);
+      border: 1px solid rgba(249,115,22,.25);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--orange);
+    }
+    .err-banner {
+      padding: 9px 13px;
+      background: rgba(239,68,68,.07);
+      border: 1px solid rgba(239,68,68,.25);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: #ef4444;
+      margin-top: 13px;
+    }
+
+    /* ─── SPINNER ────────────────────────────────────────── */
+    .spinner {
+      width: 11px; height: 11px;
+      border: 2px solid rgba(0,0,0,.25);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin .5s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── PIPELINE STATUS ────────────────────────────────── */
+    .pipeline-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+
+    .pipeline-row {
+      display: grid;
+      grid-template-columns: 180px 1fr 80px;
+      gap: 16px;
+      align-items: center;
+      padding: 11px 13px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .pipeline-row.active {
+      border-color: rgba(249,115,22,.4);
+      background: var(--orange-10);
+    }
+
+    .pipeline-name {
+      font-weight: 600; font-size: 13px;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .active-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%; background: var(--orange);
+      flex-shrink: 0;
+    }
+    .pipeline-phase { font-family: var(--ff-mono); font-size: 10.5px; color: var(--muted); }
+    .pipeline-next  { font-size: 12px; color: var(--text); margin-top: 1px; }
+    .pipeline-age   { font-family: var(--ff-mono); font-size: 10.5px; color: var(--muted); text-align: right; }
+
+    /* ─── EXIT GATE ──────────────────────────────────────── */
+    .exit-gate-preview {
+      margin-top: 13px;
+      font-family: var(--ff-mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 13px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    /* ─── LOADING PLACEHOLDER ────────────────────────────── */
+    .shimmer {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shim 1.4s infinite;
+      border-radius: 4px;
+      height: 14px;
+    }
+    @keyframes shim { to { background-position: -200% 0; } }
+  </style>
+</head>
+
+<body>
+<!-- API key loaded before main script — onerror prevents crash when file is absent -->
+<script src="config.js" onerror="window.VD_API_KEY=''"></script>
+
+<div id="workspace">
+
+  <!-- ── ZONE 1: FOCUS STRIP ─────────────────────────────── -->
+  <div id="focus-strip">
+    <div id="focus-identity">
+      <div class="focus-app" id="focus-app">—</div>
+      <div class="focus-phase" id="focus-phase">loading…</div>
+    </div>
+    <div id="focus-center">
+      <div class="focus-next-label">Next action</div>
+      <div class="focus-next-text" id="focus-next">—</div>
+    </div>
+    <div class="focus-meta">
+      <div class="focus-updated" id="focus-updated">—</div>
+      <a id="focus-btn" class="btn-session" href="#" target="_blank" rel="noopener">
+        Start Session →
+      </a>
+    </div>
+  </div>
+
+  <!-- ── ZONE 2: TOOL LAUNCHER ───────────────────────────── -->
+  <div id="launcher">
+    <!-- populated by JS -->
+  </div>
+
+  <!-- ── ZONE 3: EMBEDDED TOOLS ──────────────────────────── -->
+  <div id="tools">
+
+    <!-- 1. Prompt Generator -->
+    <div class="acc-item" id="acc-prompt">
+      <div class="acc-header" onclick="toggleAcc('acc-prompt')">
+        <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="acc-title">Prompt Generator</span>
+        <span class="acc-subtitle">Generate Claude Code prompts from app context</span>
+      </div>
+      <div class="acc-body">
+        <div class="form-block">
+          <label class="form-label" for="pg-type">Prompt type</label>
+          <select id="pg-type" onchange="pgUpdateForm()">
+            <option value="fix">Fix — debug a broken behavior</option>
+            <option value="feature">Feature — build something new</option>
+            <option value="ux">UX — improve a screen or flow</option>
+            <option value="review">Review — audit code quality</option>
+            <option value="exit-gate">Exit Gate — Lovable handoff check</option>
+          </select>
+        </div>
+        <div id="pg-fields"></div>
+        <button class="btn-action" id="pg-btn" onclick="pgGenerate()" style="display:none">
+          Generate Prompt
+        </button>
+        <button class="btn-copy-inline" id="pg-copy-btn" onclick="pgCopyExitGate()" style="display:none">
+          Copy Exit Gate Prompt
+        </button>
+        <div id="pg-output" class="output-block" style="display:none">
+          <button class="btn-copy-float" onclick="floatCopy('pg-pre',this)">copy</button>
+          <pre class="output-pre" id="pg-pre"></pre>
+        </div>
+        <div id="pg-warn" class="warn-banner" style="display:none">
+          Add your Anthropic API key to <code>config.js</code> to enable AI features.
+        </div>
+        <div id="pg-err" class="err-banner" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- 2. User Story Creator -->
+    <div class="acc-item" id="acc-story">
+      <div class="acc-header" onclick="toggleAcc('acc-story')">
+        <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="acc-title">User Story Creator</span>
+        <span class="acc-subtitle">Plain English → formatted user story</span>
+      </div>
+      <div class="acc-body">
+        <div class="form-block">
+          <label class="form-label" for="story-input">Describe the feature</label>
+          <textarea id="story-input" placeholder="e.g. Users should be able to export their habit data as a CSV from the settings screen…"></textarea>
+        </div>
+        <button class="btn-action" id="story-btn" onclick="storyGenerate()">
+          Generate User Story
+        </button>
+        <div id="story-output" class="output-block" style="display:none">
+          <button class="btn-copy-float" onclick="floatCopy('story-pre',this)">copy</button>
+          <pre class="output-pre" id="story-pre"></pre>
+        </div>
+        <div id="story-warn" class="warn-banner" style="display:none">
+          Add your Anthropic API key to <code>config.js</code> to enable AI features.
+        </div>
+        <div id="story-err" class="err-banner" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- 3. Pipeline Status -->
+    <div class="acc-item" id="acc-pipeline">
+      <div class="acc-header" onclick="toggleAcc('acc-pipeline')">
+        <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="acc-title">Pipeline Status</span>
+        <span class="acc-subtitle">All apps — phase, next action, days idle</span>
+      </div>
+      <div class="acc-body">
+        <div class="pipeline-rows" id="pipeline-rows">
+          <!-- populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Exit Gate -->
+    <div class="acc-item" id="acc-exit">
+      <div class="acc-header" onclick="toggleAcc('acc-exit')">
+        <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="acc-title">Exit Gate</span>
+        <span class="acc-subtitle">Lovable handoff prompt — copy before every session end</span>
+      </div>
+      <div class="acc-body">
+        <pre class="exit-gate-preview" id="exit-gate-text"></pre>
+        <button class="btn-copy-inline" id="exit-btn" onclick="exitCopy()">
+          Copy Exit Gate Prompt
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /tools -->
+</div><!-- /workspace -->
+
+<script>
+/* ================================================================
+   CONSTANTS
+   ================================================================ */
+const MODEL = 'claude-sonnet-4-20250514';
+const MAX_TOKENS = 1000;
+
+const EXIT_GATE_PROMPT = `You are performing an exit gate review before handing this project to Lovable for production polish.
+
+Review the following:
+
+1. LOCKED FILES
+   List all files that must NOT be modified during the Lovable session. Include files containing business logic, API routes, database schema, auth middleware, and any file that has been manually debugged or patched.
+
+2. KNOWN ISSUES (out of scope)
+   List bugs, edge cases, or incomplete features that are known but NOT in scope for this Lovable session. Lovable should be aware but must not attempt to fix them.
+
+3. DESIGN TARGETS
+   Describe the visual goals for this session precisely: spacing system, typography scale, color usage, interaction states (hover, disabled, loading), and any component-level design targets.
+
+4. SUCCESS CRITERIA
+   What must be true for this session to be considered complete?
+   - [ ] criterion 1
+   - [ ] criterion 2
+   - [ ] criterion 3
+
+5. OUT OF SCOPE
+   Explicitly list what Lovable must not touch during this session.
+
+Output: structured markdown, ready to paste as the opening message of a Lovable session. No preamble.`;
+
+/* ================================================================
+   STATE
+   ================================================================ */
+let S   = null;  // full status.json payload
+let APP = null;  // active app object
+
+/* ================================================================
+   BOOT
+   ================================================================ */
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const r = await fetch('status.json');
+    if (!r.ok) throw new Error(`status.json returned ${r.status}`);
+    S   = await r.json();
+    APP = S.apps?.[S.active_app] ?? null;
+    renderFocusStrip();
+    renderLauncher();
+    renderPipelineStatus();
+    renderExitGate();
+    pgUpdateForm();
+    maybeShowApiWarnings();
+  } catch (err) {
+    console.error(err);
+    qs('#focus-app').textContent   = 'Could not load status.json';
+    qs('#focus-phase').textContent = err.message;
+  }
+});
+
+/* ================================================================
+   ZONE 1 — FOCUS STRIP
+   ================================================================ */
+function renderFocusStrip() {
+  if (!APP) return;
+  qs('#focus-app').textContent   = APP.name  ?? '—';
+  qs('#focus-phase').textContent = APP.phase ?? '—';
+  qs('#focus-next').textContent  = APP.next  ?? '—';
+  qs('#focus-updated').textContent = S.updated ? 'Updated ' + fmtDate(S.updated) : '—';
+
+  const btn = qs('#focus-btn');
+  if (APP.repo) {
+    btn.href = APP.repo;
+  } else {
+    btn.removeAttribute('href');
+    btn.style.opacity   = '0.45';
+    btn.style.cursor    = 'default';
+    btn.title           = 'Set repo URL in status.json';
+  }
+}
+
+/* ================================================================
+   ZONE 2 — TOOL LAUNCHER
+   ================================================================ */
+function renderLauncher() {
+  const al  = APP?.links ?? {};
+  const tl  = S?.tools   ?? {};
+  const app = APP?.name  ?? null;
+
+  const categories = [
+    {
+      label: 'Build',
+      links: [
+        { icon: '◈', label: 'Lovable',   url: al.lovable  ?? 'https://lovable.dev',                     badge: app },
+        { icon: '◆', label: 'Claude.ai', url: tl.claude   ?? 'https://claude.ai',                        badge: null },
+        { icon: '⚡', label: 'EAS Build', url: tl.eas      ?? 'https://expo.dev',                         badge: null },
+      ]
+    },
+    {
+      label: 'Infrastructure',
+      links: [
+        { icon: '△', label: 'Vercel',      url: al.vercel      ?? 'https://vercel.com',                  badge: app },
+        { icon: '⬡', label: 'Turso',       url: al.turso       ?? 'https://app.turso.tech',              badge: null },
+        { icon: '○', label: 'Clerk',        url: al.clerk       ?? 'https://dashboard.clerk.com',         badge: null },
+        { icon: '⚠', label: 'Sentry',       url: al.sentry      ?? 'https://sentry.io',                  badge: null },
+        { icon: '$', label: 'RevenueCat',   url: al.revenuecat  ?? 'https://app.revenuecat.com',          badge: null },
+        { icon: '~', label: 'Cloudflare',   url: tl.cloudflare  ?? 'https://dash.cloudflare.com',         badge: null },
+      ]
+    },
+    {
+      label: 'Distribution',
+      links: [
+        { icon: '⌘', label: 'App Store Connect', url: al.app_store ?? 'https://appstoreconnect.apple.com', badge: null },
+        { icon: '↑', label: 'EAS Submit',         url: tl.eas       ?? 'https://expo.dev',                 badge: null },
+        { icon: '✓', label: 'TestFlight',          url: 'https://appstoreconnect.apple.com',               badge: null },
+      ]
+    },
+    {
+      label: 'Planning',
+      links: [
+        { icon: '≡', label: 'Kanban',         url: tl.kanban ?? 'https://my-kanbanflow.lovable.app/', badge: null },
+        { icon: '◆', label: 'Claude Project', url: tl.claude ?? 'https://claude.ai',                  badge: null },
+      ]
+    }
+  ];
+
+  qs('#launcher').innerHTML = categories.map(cat => `
+    <div>
+      <div class="cat-label">${h(cat.label)}</div>
+      <div class="cat-links">
+        ${cat.links.map(l => `
+          <a class="tool-link" href="${a(l.url)}" target="_blank" rel="noopener">
+            <span class="tool-icon">${l.icon}</span>
+            <span>${h(l.label)}</span>
+            ${l.badge ? `<span class="tool-badge">${h(l.badge)}</span>` : ''}
+          </a>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ================================================================
+   ZONE 3 — PIPELINE STATUS
+   ================================================================ */
+function renderPipelineStatus() {
+  if (!S?.apps) return;
+  const rows = Object.entries(S.apps).map(([key, app]) => {
+    const isActive = key === S.active_app;
+    const age = isActive && S.updated ? daysSince(S.updated) : null;
+    return `
+      <div class="pipeline-row ${isActive ? 'active' : ''}">
+        <div class="pipeline-name">
+          ${isActive ? '<span class="active-dot"></span>' : ''}
+          ${h(app.name)}
+        </div>
+        <div>
+          <div class="pipeline-phase">${h(app.phase)}</div>
+          <div class="pipeline-next">${h(app.next ?? '—')}</div>
+        </div>
+        <div class="pipeline-age">${age !== null ? age + 'd ago' : '—'}</div>
+      </div>
+    `;
+  });
+  qs('#pipeline-rows').innerHTML = rows.join('');
+}
+
+/* ================================================================
+   ZONE 3 — EXIT GATE
+   ================================================================ */
+function renderExitGate() {
+  const text = S?.exit_gate_prompt ?? EXIT_GATE_PROMPT;
+  qs('#exit-gate-text').textContent = text;
+}
+
+function exitCopy() {
+  const text = qs('#exit-gate-text').textContent;
+  clipCopy(text, qs('#exit-btn'));
+}
+
+/* ================================================================
+   ACCORDION
+   ================================================================ */
+function toggleAcc(id) {
+  qs('#' + id).classList.toggle('open');
+}
+
+/* ================================================================
+   PROMPT GENERATOR
+   ================================================================ */
+const PG_CONFIGS = {
+  fix: {
+    fields: [
+      { id: 'pg-1', label: 'What is broken?',    placeholder: 'e.g. Streak counter resets to 0 when the app is backgrounded' },
+      { id: 'pg-2', label: 'Expected behavior',   placeholder: 'e.g. Streak should persist correctly and only reset after midnight' },
+    ]
+  },
+  feature: {
+    fields: [
+      { id: 'pg-1', label: 'What feature are you building?', placeholder: 'e.g. Weekly summary screen showing habit completion rates' },
+      { id: 'pg-2', label: 'User story / context',           placeholder: 'e.g. Users want to review their week before starting Monday' },
+    ]
+  },
+  ux: {
+    fields: [
+      { id: 'pg-1', label: 'Which screen or flow?', placeholder: 'e.g. HomeScreen — streak display section' },
+      { id: 'pg-2', label: 'What needs improving?', placeholder: 'e.g. Streak number lacks visual hierarchy and feels disconnected' },
+    ]
+  },
+  review: {
+    fields: [
+      { id: 'pg-1', label: 'What to review?', placeholder: 'e.g. Auth middleware and session handling logic' },
+    ]
+  },
+  'exit-gate': { fields: [] }
+};
+
+function pgUpdateForm() {
+  const type   = qs('#pg-type').value;
+  const cfg    = PG_CONFIGS[type] ?? { fields: [] };
+  const isExit = type === 'exit-gate';
+
+  if (cfg.fields.length === 0 && !isExit) {
+    qs('#pg-fields').innerHTML = '';
+  } else if (isExit) {
+    qs('#pg-fields').innerHTML = `
+      <p style="margin-top:12px;font-size:12px;color:var(--muted);">
+        No inputs required — copies the hardcoded exit gate prompt.
+      </p>`;
+  } else {
+    qs('#pg-fields').innerHTML = `
+      <div class="form-grid${cfg.fields.length > 1 ? ' cols-2' : ''}">
+        ${cfg.fields.map(f => `
+          <div>
+            <label class="form-label" for="${f.id}">${h(f.label)}</label>
+            <input type="text" id="${f.id}" placeholder="${h(f.placeholder)}">
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  qs('#pg-btn').style.display      = isExit ? 'none'         : 'inline-flex';
+  qs('#pg-copy-btn').style.display = isExit ? 'inline-flex'  : 'none';
+  qs('#pg-output').style.display   = 'none';
+  qs('#pg-err').style.display      = 'none';
+}
+
+function pgCopyExitGate() {
+  clipCopy(EXIT_GATE_PROMPT, qs('#pg-copy-btn'));
+}
+
+async function pgGenerate() {
+  if (!apiKeyAvailable('pg-warn')) return;
+
+  const type   = qs('#pg-type').value;
+  const name   = APP?.name  ?? 'the app';
+  const phase  = APP?.phase ?? 'unknown phase';
+  const in1    = qs('#pg-1')?.value.trim() ?? '';
+  const in2    = qs('#pg-2')?.value.trim() ?? '';
+
+  const systemPrompt = 'You are generating a Claude Code prompt for a React Native / Expo developer. Output only the prompt text itself — no preamble, no explanation, no markdown wrapper. The prompt should be ready to paste directly into Claude Code.';
+
+  const userMessages = {
+    fix: `App: ${name} — ${phase}
+
+Task type: FIX
+What is broken: ${in1 || '(not specified)'}
+Expected behavior: ${in2 || '(not specified)'}
+
+Generate a thorough debugging and fix prompt. Include: problem restatement, files likely involved, step-by-step investigation plan, the fix to implement, and a verification step.`,
+
+    feature: `App: ${name} — ${phase}
+
+Task type: FEATURE
+Feature to build: ${in1 || '(not specified)'}
+User story / context: ${in2 || '(not specified)'}
+
+Generate a feature implementation prompt. Include: feature summary, technical approach, files to create or modify, implementation steps in order, and acceptance criteria to verify.`,
+
+    ux: `App: ${name} — ${phase}
+
+Task type: UX
+Screen or flow: ${in1 || '(not specified)'}
+What needs improving: ${in2 || '(not specified)'}
+
+Generate a UX improvement prompt. Include: current state analysis, specific changes to make, component-level modifications, spacing/typography guidance, and visual verification steps.`,
+
+    review: `App: ${name} — ${phase}
+
+Task type: REVIEW
+What to review: ${in1 || '(not specified)'}
+
+Generate a code review prompt. Include: areas to inspect, specific patterns to look for (security, performance, maintainability), quality criteria, and what to flag or immediately fix.`,
+  };
+
+  const userContent = userMessages[type];
+  if (!userContent) return;
+
+  await callClaude({
+    system: systemPrompt,
+    user: userContent,
+    preId: 'pg-pre',
+    outId: 'pg-output',
+    errId: 'pg-err',
+    btnId: 'pg-btn',
+    btnLabel: 'Generate Prompt',
+  });
+}
+
+/* ================================================================
+   USER STORY CREATOR
+   ================================================================ */
+async function storyGenerate() {
+  if (!apiKeyAvailable('story-warn')) return;
+
+  const feature = qs('#story-input').value.trim();
+  if (!feature) { qs('#story-input').focus(); return; }
+
+  const name = APP?.name ?? 'this app';
+
+  await callClaude({
+    system: `You are a product manager writing user stories for a React Native / Expo mobile app called "${name}". Format your response EXACTLY as:
+
+TITLE: [concise title]
+
+As a [user type]
+I want [feature or action]
+So that [benefit or outcome]
+
+ACCEPTANCE CRITERIA:
+1. [criterion]
+2. [criterion]
+3. [criterion]
+
+OUT OF SCOPE:
+- [item]
+
+EFFORT: S / M / L
+
+Output only the user story in this exact format. No preamble or explanation.`,
+    user: `Create a user story for this feature: ${feature}`,
+    preId: 'story-pre',
+    outId: 'story-output',
+    errId: 'story-err',
+    btnId: 'story-btn',
+    btnLabel: 'Generate User Story',
+  });
+}
+
+/* ================================================================
+   CLAUDE API
+   ================================================================ */
+async function callClaude({ system, user, preId, outId, errId, btnId, btnLabel }) {
+  const btn = qs('#' + btnId);
+  const out = qs('#' + outId);
+  const err = qs('#' + errId);
+  const pre = qs('#' + preId);
+
+  btn.disabled   = true;
+  btn.innerHTML  = '<span class="spinner"></span> Generating…';
+  err.style.display = 'none';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': window.VD_API_KEY ?? '',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system,
+        messages: [{ role: 'user', content: user }],
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error?.message ?? `API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    pre.textContent    = data.content?.[0]?.text ?? '(empty response)';
+    out.style.display  = 'block';
+  } catch (e) {
+    err.textContent    = e.message;
+    err.style.display  = 'block';
+    out.style.display  = 'none';
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = btnLabel;
+  }
+}
+
+/* ================================================================
+   UTILITIES
+   ================================================================ */
+function maybeShowApiWarnings() {
+  if (!window.VD_API_KEY) {
+    qs('#pg-warn').style.display    = 'block';
+    qs('#story-warn').style.display = 'block';
+  }
+}
+
+function apiKeyAvailable(warnId) {
+  if (!window.VD_API_KEY) {
+    qs('#' + warnId).style.display = 'block';
+    return false;
+  }
+  return true;
+}
+
+function floatCopy(preId, btn) {
+  clipCopy(qs('#' + preId).textContent, btn);
+}
+
+function clipCopy(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+  }).catch(() => {});
+}
+
+function qs(sel) { return document.querySelector(sel); }
+
+function h(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function a(url) {
+  if (!url) return '#';
+  return String(url).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function fmtDate(s) {
+  try {
+    return new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return s; }
+}
+
+function daysSince(s) {
+  try {
+    return Math.floor((Date.now() - new Date(s + 'T00:00:00').getTime()) / 86400000);
+  } catch { return '?'; }
+}
+</script>
+</body>
 </html>

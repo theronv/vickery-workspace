@@ -1,0 +1,44 @@
+{
+  "active_app": "monoline",
+  "updated": "2026-04-22",
+  "apps": {
+    "monoline": {
+      "name": "MonoLine",
+      "phase": "Stage 3 — P4",
+      "next": "Run vd prompt ux on HomeScreen streak display",
+      "stage": 3,
+      "repo": "https://github.com/theronv/monoline",
+      "links": {
+        "vercel":     "https://vercel.com/theronv/monoline-api",
+        "turso":      "https://app.turso.tech",
+        "clerk":      "https://dashboard.clerk.com",
+        "lovable":    "https://lovable.dev",
+        "sentry":     "https://sentry.io",
+        "revenuecat": "https://app.revenuecat.com",
+        "app_store":  "https://appstoreconnect.apple.com"
+      }
+    },
+    "chorify": {
+      "name": "Chorify",
+      "phase": "Stage 4 — App Store",
+      "next": "Monitor App Store review",
+      "stage": 4,
+      "repo": "https://github.com/theronv/chorify",
+      "links": {
+        "vercel":     "https://vercel.com/theronv/chorify-api",
+        "turso":      "https://app.turso.tech",
+        "clerk":      "https://dashboard.clerk.com",
+        "lovable":    "https://lovable.dev",
+        "sentry":     "https://sentry.io",
+        "revenuecat": "https://app.revenuecat.com",
+        "app_store":  "https://appstoreconnect.apple.com"
+      }
+    }
+  },
+  "tools": {
+    "kanban":     "https://my-kanbanflow.lovable.app/",
+    "claude":     "https://claude.ai/project/[your-project-id]",
+    "cloudflare": "https://dash.cloudflare.com",
+    "eas":        "https://expo.dev"
+  }
+}
