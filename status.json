@@ -1,6 +1,6 @@
 {
   "active_app": "monoline",
-  "updated": "2026-04-22",
+  "updated": "2026-04-24",
   "apps": {
     "monoline": {
       "name": "MonoLine",
@@ -20,7 +20,7 @@
     "chorify": {
       "name": "Chorify",
       "stage": "alpha",
-      "next": "Testing",
+      "next": "vd check",
       "repo": "https://github.com/theronv/new-chorify",
       "links": {
         "vercel": "https://vercel.com/theronv/chorify-api",
