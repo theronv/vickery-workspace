@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "mkdir -p dist && cp index.html status.json config.example.js story-generator.html dist/ && ([ -f config.js ] && cp config.js dist/ || true)",
+    "build": "mkdir -p dist && cp index.html status.json config.example.js story-generator.html angel-team-prompts.html lovable-improver.html dist/ && ([ -f config.js ] && cp config.js dist/ || true)",
     "preview": "vite preview"
   },
   "dependencies": {

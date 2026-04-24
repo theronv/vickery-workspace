@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<!--
+  EXIT GATE PANEL — workspace.vickerydigital.com
+  ================================================
+  Self-contained panel. Drop into the workspace accordion as-is,
+  or use standalone by opening directly in a browser.
+
+  Requires: window.VD_API_KEY set in config.js (same as workspace)
+  If key missing: AI scoring degrades gracefully, manual mode still works.
+
+  INTEGRATION NOTE FOR CLAUDE CODE:
+  This file is designed to be embedded as the "Exit Gate" accordion
+  panel in index.html. The <style> block uses the VD design system
+  variables already defined in the workspace. When integrating,
+  remove the <html>/<body> wrapper and the @import font lines —
+  those are already loaded by the parent page.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exit Gate — Vickery Digital</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&display=swap" rel="stylesheet">
+
+<style>
+  /* ── VD Design Tokens ─────────────────────────────────────── */
+  :root {
+    --bg:           #0d0f14;
+    --surface:      #1a1d24;
+    --surface-2:    #21252f;
+    --surface-3:    #272c38;
+    --border:       #2a2f3d;
+    --border-light: #343b4f;
+    --orange:       #f97316;
+    --orange-dim:   rgba(249,115,22,0.12);
+    --orange-glow:  rgba(249,115,22,0.06);
+    --text:         #f1f0eb;
+    --text-muted:   #6b7280;
+    --text-dim:     #9ca3af;
+    --green:        #4ade80;
+    --green-bg:     rgba(74,222,128,0.08);
+    --red:          #f87171;
+    --red-bg:       rgba(248,113,113,0.08);
+    --yellow:       #fbbf24;
+    --yellow-bg:    rgba(251,191,36,0.08);
+    --blue:         #60a5fa;
+    --blue-bg:      rgba(96,165,250,0.08);
+    --font-display: 'Cabinet Grotesk', sans-serif;
+    --font-body:    'DM Sans', sans-serif;
+    --font-mono:    'Fira Code', monospace;
+    --radius:       6px;
+    --radius-lg:    10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 2rem;
+    min-height: 100vh;
+  }
+
+  /* ── Panel wrapper ─────────────────────────────────────────── */
+  .eg-panel {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ────────────────────────────────────────────────── */
+  .eg-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 1.75rem;
+  }
+  .eg-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .eg-title span { color: var(--orange); }
+  .eg-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ── Loop tracker ──────────────────────────────────────────── */
+  .loop-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .loop-step {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-right: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .loop-step:last-child { border-right: none; }
+  .loop-step.active {
+    background: var(--orange-glow);
+    color: var(--text);
+  }
+  .loop-step.done { background: rgba(74,222,128,0.04); }
+  .loop-step .ls-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .loop-step.active .ls-num { color: var(--orange); }
+  .loop-step.done .ls-num { color: var(--green); }
+  .loop-step .ls-label { font-size: 12px; font-weight: 500; }
+  .loop-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    display: inline-block;
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    width: fit-content;
+  }
+  .lb-active { background: var(--orange-dim); color: var(--orange); }
+  .lb-done   { background: var(--green-bg);   color: var(--green); }
+  .lb-wait   { background: var(--surface-3);  color: var(--text-muted); }
+
+  /* ── Section layout ────────────────────────────────────────── */
+  .eg-section {
+    margin-bottom: 1.5rem;
+  }
+  .eg-section-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .eg-section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Inputs ────────────────────────────────────────────────── */
+  .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .input-group { display: flex; flex-direction: column; gap: 5px; }
+  .input-group label { font-size: 12px; color: var(--text-dim); }
+  input[type="text"], textarea, select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 8px 10px;
+    width: 100%;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  input[type="text"]:focus,
+  textarea:focus,
+  select:focus { border-color: var(--orange); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface-2); }
+
+  /* ── Feature list ──────────────────────────────────────────── */
+  .feature-list { display: flex; flex-direction: column; gap: 6px; }
+  .feature-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .feature-row input[type="text"] { flex: 1; }
+  .btn-icon {
+    width: 28px; height: 28px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .btn-icon:hover { border-color: var(--orange); color: var(--orange); }
+  .btn-add-feature {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 7px 12px;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    margin-top: 4px;
+    transition: all 0.15s;
+  }
+  .btn-add-feature:hover { border-color: var(--orange); color: var(--orange); }
+
+  /* ── Upload zone ───────────────────────────────────────────── */
+  .upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover,
+  .upload-zone.drag-over {
+    border-color: var(--orange);
+    background: var(--orange-glow);
+  }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 24px; margin-bottom: 6px; }
+  .upload-label { font-size: 13px; color: var(--text-muted); }
+  .upload-label strong { color: var(--text); }
+  .upload-filename {
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--green);
+    display: none;
+  }
+
+  /* ── Buttons ───────────────────────────────────────────────── */
+  .btn-primary {
+    background: var(--orange);
+    color: #0d0f14;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary {
+    background: var(--surface-2);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .btn-secondary:hover { border-color: var(--border-light); color: var(--text); }
+  .btn-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* ── Score card ────────────────────────────────────────────── */
+  .score-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .score-indicator {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .si-pass { background: var(--green); }
+  .si-fail { background: var(--red); }
+  .si-warn { background: var(--yellow); }
+  .si-pending { background: var(--border-light); }
+  .score-label { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; }
+  .score-status { font-size: 11px; font-family: var(--font-mono); }
+  .ss-pass { color: var(--green); }
+  .ss-fail { color: var(--red); }
+  .ss-warn { color: var(--yellow); }
+  .ss-pending { color: var(--text-muted); }
+
+  /* ── Verdict banner ────────────────────────────────────────── */
+  .verdict-banner {
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .vb-export { background: var(--green-bg); border: 1px solid rgba(74,222,128,0.2); }
+  .vb-pass   { background: var(--green-bg); border: 1px solid rgba(74,222,128,0.2); }
+  .vb-loop   { background: var(--yellow-bg); border: 1px solid rgba(251,191,36,0.2); }
+  .vb-block  { background: var(--red-bg); border: 1px solid rgba(248,113,113,0.2); }
+  .verdict-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .vt-export, .vt-pass { color: var(--green); }
+  .vt-loop { color: var(--yellow); }
+  .vt-block { color: var(--red); }
+  .verdict-body { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
+  /* ── Output prompt block ───────────────────────────────────── */
+  .output-block {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: none;
+  }
+  .ob-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-3);
+  }
+  .ob-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .ob-actions { display: flex; gap: 6px; }
+  .ob-content {
+    padding: 14px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    line-height: 1.7;
+    max-height: 380px;
+    overflow-y: auto;
+  }
+  .ob-content::-webkit-scrollbar { width: 4px; }
+  .ob-content::-webkit-scrollbar-track { background: transparent; }
+  .ob-content::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
+  /* ── Iteration history ─────────────────────────────────────── */
+  .iter-list { display: flex; flex-direction: column; gap: 6px; }
+  .iter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+  }
+  .iter-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 24px;
+  }
+  .iter-verdict { font-weight: 500; }
+  .iv-pass  { color: var(--green); }
+  .iv-loop  { color: var(--yellow); }
+  .iv-block { color: var(--red); }
+  .iter-summary { color: var(--text-muted); flex: 1; }
+  .iter-time { color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; }
+
+  /* ── Loading spinner ───────────────────────────────────────── */
+  .spinner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .spinner.show { display: flex; }
+  .spin-ring {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--orange);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── API key warning ───────────────────────────────────────── */
+  .api-warn {
+    background: var(--yellow-bg);
+    border: 1px solid rgba(251,191,36,0.15);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--yellow);
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ── Divider ───────────────────────────────────────────────── */
+  .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+  /* ── Loop counter ──────────────────────────────────────────── */
+  .loop-counter {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: inline-block;
+  }
+  .loop-counter span { color: var(--orange); font-weight: 500; }
+
+  /* ── Scrollbar global ──────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+</style>
+</head>
+
+<body>
+<div class="eg-panel">
+
+  <!-- Header -->
+  <div class="eg-header">
+    <div class="eg-title">Exit <span>Gate</span></div>
+    <div class="eg-subtitle">Lovable → Claude Code readiness loop</div>
+    <div style="margin-left:auto">
+      <div class="loop-counter">Loop <span id="loopCount">0</span></div>
+    </div>
+  </div>
+
+  <!-- API key warning (hidden — proxy handles auth) -->
+  <div class="api-warn" id="apiWarn" style="display:none"></div>
+
+  <!-- Loop tracker -->
+  <div class="loop-track">
+    <div class="loop-step active" id="ls1">
+      <div class="ls-num">Step 1</div>
+      <div class="ls-label">Configure</div>
+      <div class="loop-badge lb-active">current</div>
+    </div>
+    <div class="loop-step" id="ls2">
+      <div class="ls-num">Step 2</div>
+      <div class="ls-label">Get Lovable Prompt</div>
+      <div class="loop-badge lb-wait">waiting</div>
+    </div>
+    <div class="loop-step" id="ls3">
+      <div class="ls-num">Step 3</div>
+      <div class="ls-label">Upload AUDIT.md</div>
+      <div class="loop-badge lb-wait">waiting</div>
+    </div>
+    <div class="loop-step" id="ls4">
+      <div class="ls-num">Step 4</div>
+      <div class="ls-label">Score Results</div>
+      <div class="loop-badge lb-wait">waiting</div>
+    </div>
+    <div class="loop-step" id="ls5">
+      <div class="ls-num">Step 5</div>
+      <div class="ls-label">Export Ready</div>
+      <div class="loop-badge lb-wait">waiting</div>
+    </div>
+  </div>
+
+  <!-- ── STEP 1: Configure ─────────────────────────────── -->
+  <div id="step1" class="step-panel">
+    <div class="eg-section">
+      <div class="eg-section-label">App context</div>
+      <div class="input-row">
+        <div class="input-group">
+          <label>App name</label>
+          <input type="text" id="appName" placeholder="MonoLine" />
+        </div>
+        <div class="input-group">
+          <label>Current phase</label>
+          <input type="text" id="appPhase" placeholder="Lovable MVP — pre-export" />
+        </div>
+      </div>
+    </div>
+
+    <div class="eg-section">
+      <div class="eg-section-label">V1 feature list</div>
+      <div class="feature-list" id="featureList">
+        <div class="feature-row">
+          <input type="text" placeholder="e.g. One-line daily journal entry" />
+          <button class="btn-icon" onclick="removeFeature(this)" title="Remove">×</button>
+        </div>
+        <div class="feature-row">
+          <input type="text" placeholder="e.g. Streak counter" />
+          <button class="btn-icon" onclick="removeFeature(this)" title="Remove">×</button>
+        </div>
+        <div class="feature-row">
+          <input type="text" placeholder="e.g. RevenueCat paywall on export" />
+          <button class="btn-icon" onclick="removeFeature(this)" title="Remove">×</button>
+        </div>
+      </div>
+      <button class="btn-add-feature" onclick="addFeature()">+ Add feature</button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary" onclick="goToStep2()">
+        Generate Lovable Prompt →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: Lovable Prompt ────────────────────────── -->
+  <div id="step2" class="step-panel" style="display:none">
+    <div class="eg-section">
+      <div class="eg-section-label">Paste this into Lovable chat</div>
+      <div class="output-block" id="lovablePromptBlock" style="display:block">
+        <div class="ob-header">
+          <span class="ob-label">Lovable audit prompt</span>
+          <div class="ob-actions">
+            <button class="btn-secondary" onclick="copyBlock('lovablePromptText')" style="font-size:11px;padding:4px 10px">Copy</button>
+          </div>
+        </div>
+        <div class="ob-content" id="lovablePromptText"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">
+      <strong style="color:var(--text)">What to do:</strong><br>
+      1. Copy the prompt above<br>
+      2. Paste it as your opening message in a Lovable session<br>
+      3. Let Lovable analyze the codebase and return an updated AUDIT.md<br>
+      4. Download the AUDIT.md file and come back here for Step 3
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goToStep(1)">← Back</button>
+      <button class="btn-primary" onclick="goToStep(3)">I have the AUDIT.md →</button>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: Upload AUDIT.md ───────────────────────── -->
+  <div id="step3" class="step-panel" style="display:none">
+    <div class="eg-section">
+      <div class="eg-section-label">Upload AUDIT.md from Lovable</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="auditFile" accept=".md,.txt" onchange="handleFileUpload(this)">
+        <div class="upload-icon">📄</div>
+        <div class="upload-label"><strong>Drop AUDIT.md here</strong> or click to browse</div>
+        <div class="upload-filename" id="uploadFilename"></div>
+      </div>
+    </div>
+
+    <div class="spinner" id="scoreSpinner">
+      <div class="spin-ring"></div>
+      Scoring against migration criteria...
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn-secondary" onclick="goToStep(2)">← Back</button>
+      <button class="btn-primary" id="scoreBtn" onclick="scoreAudit()" disabled>
+        Score this AUDIT.md →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── STEP 4: Score Results ─────────────────────────── -->
+  <div id="step4" class="step-panel" style="display:none">
+
+    <div class="verdict-banner" id="verdictBanner">
+      <div class="verdict-title" id="verdictTitle"></div>
+      <div class="verdict-body" id="verdictBody"></div>
+    </div>
+
+    <div class="eg-section">
+      <div class="eg-section-label">Criteria scores</div>
+      <div class="score-grid" id="scoreGrid">
+        <div class="score-card">
+          <div class="score-indicator si-pending" id="si-rn"></div>
+          <div class="score-label">RN Compatibility</div>
+          <div class="score-status ss-pending" id="ss-rn">pending</div>
+        </div>
+        <div class="score-card">
+          <div class="score-indicator si-pending" id="si-flows"></div>
+          <div class="score-label">Core Flow Completeness</div>
+          <div class="score-status ss-pending" id="ss-flows">pending</div>
+        </div>
+        <div class="score-card">
+          <div class="score-indicator si-pending" id="si-auth"></div>
+          <div class="score-label">Auth Pattern</div>
+          <div class="score-status ss-pending" id="ss-auth">pending</div>
+        </div>
+        <div class="score-card">
+          <div class="score-indicator si-pending" id="si-data"></div>
+          <div class="score-label">Data Layer Mapped</div>
+          <div class="score-status ss-pending" id="ss-data">pending</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="eg-section" id="nextPromptSection" style="display:none">
+      <div class="eg-section-label">Next Lovable prompt</div>
+      <div class="output-block" style="display:block">
+        <div class="ob-header">
+          <span class="ob-label">Targeted fix prompt — paste into Lovable</span>
+          <div class="ob-actions">
+            <button class="btn-secondary" onclick="copyBlock('nextPromptText')" style="font-size:11px;padding:4px 10px">Copy</button>
+          </div>
+        </div>
+        <div class="ob-content" id="nextPromptText"></div>
+      </div>
+    </div>
+
+    <div class="eg-section" id="handoffSection" style="display:none">
+      <div class="eg-section-label">HANDOFF.md — ready for Claude Code</div>
+      <div class="output-block" style="display:block">
+        <div class="ob-header">
+          <span class="ob-label">handoff.md</span>
+          <div class="ob-actions">
+            <button class="btn-secondary" onclick="copyBlock('handoffText')" style="font-size:11px;padding:4px 10px">Copy</button>
+            <button class="btn-secondary" onclick="downloadHandoff()" style="font-size:11px;padding:4px 10px">Download</button>
+          </div>
+        </div>
+        <div class="ob-content" id="handoffText"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goToStep(3)">← Re-upload</button>
+      <button class="btn-primary" id="loopBtn" onclick="startNextLoop()" style="display:none">
+        Run another loop →
+      </button>
+      <button class="btn-primary" id="exportBtn" onclick="goToStep(5)" style="display:none">
+        Export to Claude Code →
+      </button>
+    </div>
+  </div>
+
+  <!-- ── STEP 5: Export Ready ───────────────────────────── -->
+  <div id="step5" class="step-panel" style="display:none">
+    <div class="verdict-banner vb-export" style="display:block">
+      <div class="verdict-title vt-pass">✓ Ready for VD Stack migration</div>
+      <div class="verdict-body" id="exportSummary">All four criteria passed. Export from Lovable and begin the Claude Code migration.</div>
+    </div>
+
+    <div class="eg-section">
+      <div class="eg-section-label">Next steps</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-muted)">
+          <span style="color:var(--orange);font-weight:500;min-width:20px">1.</span>
+          <span>Export from Lovable → push to GitHub</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-muted)">
+          <span style="color:var(--orange);font-weight:500;min-width:20px">2.</span>
+          <span>Run <code style="font-family:var(--font-mono);font-size:11px;background:var(--surface-2);padding:1px 5px;border-radius:3px">vd register --app &lt;name&gt;</code> to create CLAUDE.md skeleton</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-muted)">
+          <span style="color:var(--orange);font-weight:500;min-width:20px">3.</span>
+          <span>Run <code style="font-family:var(--font-mono);font-size:11px;background:var(--surface-2);padding:1px 5px;border-radius:3px">vd audit ./export</code> to generate full AUDIT.md</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-muted)">
+          <span style="color:var(--orange);font-weight:500;min-width:20px">4.</span>
+          <span>Download HANDOFF.md below and commit it to the repo root</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text-muted)">
+          <span style="color:var(--orange);font-weight:500;min-width:20px">5.</span>
+          <span>Open Claude Code and run P1 migration prompt</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn-secondary" onclick="resetAll()">Start new app</button>
+      <button class="btn-secondary" onclick="downloadHandoff()">Download HANDOFF.md</button>
+    </div>
+  </div>
+
+  <!-- ── Iteration history ──────────────────────────────── -->
+  <div id="iterHistory" style="display:none; margin-top:2rem">
+    <div class="divider"></div>
+    <div class="eg-section">
+      <div class="eg-section-label">Loop history</div>
+      <div class="iter-list" id="iterList"></div>
+    </div>
+  </div>
+
+</div><!-- /eg-panel -->
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────────
+const state = {
+  appName: '',
+  appPhase: '',
+  features: [],
+  auditContent: '',
+  currentLoop: 0,
+  iterations: [],
+  lastScores: null,
+  handoffMd: '',
+};
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Try to pre-fill from workspace status.json
+  if (window.VD_STATUS) {
+    const active = window.VD_STATUS.apps?.[window.VD_STATUS.active_app];
+    if (active) {
+      document.getElementById('appName').value = active.name || '';
+      document.getElementById('appPhase').value = active.phase || 'Lovable MVP';
+    }
+  }
+
+  // Drag-over styles for upload zone
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  });
+});
+
+// ─── Step navigation ─────────────────────────────────────────────────────────
+function goToStep(n) {
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('step' + i);
+    if (el) el.style.display = i === n ? 'block' : 'none';
+    const ls = document.getElementById('ls' + i);
+    if (ls) {
+      ls.classList.remove('active', 'done');
+      const badge = ls.querySelector('.loop-badge');
+      if (i < n) {
+        ls.classList.add('done');
+        badge.className = 'loop-badge lb-done';
+        badge.textContent = 'done';
+      } else if (i === n) {
+        ls.classList.add('active');
+        badge.className = 'loop-badge lb-active';
+        badge.textContent = 'current';
+      } else {
+        badge.className = 'loop-badge lb-wait';
+        badge.textContent = 'waiting';
+      }
+    }
+  }
+}
+
+function goToStep2() {
+  state.appName = document.getElementById('appName').value.trim() || 'App';
+  state.appPhase = document.getElementById('appPhase').value.trim() || 'Lovable MVP';
+  state.features = Array.from(document.querySelectorAll('#featureList .feature-row input'))
+    .map(i => i.value.trim()).filter(Boolean);
+  document.getElementById('lovablePromptText').textContent = buildLovablePrompt();
+  goToStep(2);
+}
+
+// ─── Feature list ─────────────────────────────────────────────────────────────
+function addFeature() {
+  const list = document.getElementById('featureList');
+  const row = document.createElement('div');
+  row.className = 'feature-row';
+  row.innerHTML = `<input type="text" placeholder="Feature description" /><button class="btn-icon" onclick="removeFeature(this)" title="Remove">×</button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function removeFeature(btn) {
+  const rows = document.querySelectorAll('#featureList .feature-row');
+  if (rows.length > 1) btn.parentElement.remove();
+}
+
+// ─── Lovable audit prompt builder ────────────────────────────────────────────
+function buildLovablePrompt() {
+  const features = state.features.length
+    ? state.features.map((f, i) => `${i + 1}. ${f}`).join('\n')
+    : '(fill in V1 features before running)';
+
+  return `You are auditing this Lovable app for readiness to migrate to a React Native / Expo native stack. This is loop ${state.currentLoop + 1} of the exit gate review. This is NOT a design review — do not suggest UI improvements.
+
+App: ${state.appName}
+Phase: ${state.appPhase}
+
+Review the entire codebase against these four criteria only:
+
+## 1. RN Compatibility
+Search every file for:
+- window.* or document.* references
+- localStorage or sessionStorage usage
+- CSS :hover, :focus-visible, or pointer-only states
+- Browser-only libraries (check package.json imports)
+
+For each found: file path, what it does, migration complexity (EASY/HARD).
+If none found: state "No RN blockers found."
+
+## 2. Core Flow Completeness
+For each feature in this V1 list, verify it works end-to-end:
+${features}
+
+For each feature, score:
+- COMPLETE — happy path, error state, empty state, loading state all handled
+- PARTIAL — core path works, describe the gap
+- MISSING — not built
+
+## 3. Auth Pattern
+How is auth state persisted? Is it compatible with Clerk token-based auth?
+Flag anything using browser session, cookies, or localStorage for auth.
+If using a compatible pattern: state "Auth pattern is migration-compatible."
+
+## 4. Data Layer
+List every localStorage.getItem/setItem call. For each, name what the equivalent Turso DB table would be called. If no localStorage used for data: state "No localStorage data layer found."
+
+---
+
+## Output format
+Return a complete updated AUDIT.md with your findings. Add a new section at the bottom:
+
+## Exit Gate Review — Loop ${state.currentLoop + 1}
+### RN Compatibility: [PASS — 0 blockers] or [FAIL — N blockers found]
+### Core Flows: [PASS — all complete] or [FAIL — list incomplete features]
+### Auth Pattern: [PASS] or [FAIL — describe issue]
+### Data Layer: [MAPPED] or [UNMAPPED — describe]
+### OVERALL VERDICT: [READY TO EXPORT] or [NEEDS WORK]
+### Priority fixes (if NEEDS WORK): list the top 3 specific things to fix before next review
+
+Be precise. Vague findings are not useful. File paths and line numbers where applicable.`;
+}
+
+// ─── File upload ──────────────────────────────────────────────────────────────
+function handleFileUpload(input) {
+  if (input.files[0]) processFile(input.files[0]);
+}
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.auditContent = e.target.result;
+    const nameEl = document.getElementById('uploadFilename');
+    nameEl.textContent = '✓ ' + file.name;
+    nameEl.style.display = 'block';
+    document.getElementById('scoreBtn').disabled = false;
+  };
+  reader.readAsText(file);
+}
+
+// ─── Score AUDIT.md ───────────────────────────────────────────────────────────
+async function scoreAudit() {
+  goToStep(4);
+  document.getElementById('scoreSpinner').classList.add('show');
+  document.getElementById('scoreBtn').disabled = true;
+
+  try {
+    const response = await fetch('https://workspace-api.vercel.app/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: `You are scoring an AUDIT.md file from a Lovable app exit gate review. 
+Extract scores for exactly four criteria and output ONLY valid JSON with this exact shape:
+{
+  "rn": { "pass": true/false, "detail": "one sentence" },
+  "flows": { "pass": true/false, "detail": "one sentence" },
+  "auth": { "pass": true/false, "detail": "one sentence" },
+  "data": { "pass": true/false, "detail": "one sentence" },
+  "verdict": "READY_TO_EXPORT" | "NEEDS_WORK" | "BLOCKED",
+  "summary": "2-3 sentence plain English summary",
+  "fixes": ["fix 1", "fix 2", "fix 3"],
+  "loopSummary": "one line for history log"
+}
+No preamble. No markdown. Pure JSON only.`,
+        messages: [{
+          role: 'user',
+          content: `App: ${state.appName}\nFeatures: ${state.features.join(', ')}\n\nAUDIT.md contents:\n\n${state.auditContent}`
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '{}';
+    let scores;
+    try {
+      scores = JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch {
+      scores = parseAuditManually(state.auditContent);
+    }
+    renderScores(scores);
+  } catch (err) {
+    console.error(err);
+    renderScores(parseAuditManually(state.auditContent));
+  } finally {
+    document.getElementById('scoreSpinner').classList.remove('show');
+  }
+}
+
+// ─── Manual parse (no API key fallback) ──────────────────────────────────────
+function parseAuditManually(content) {
+  const lower = content.toLowerCase();
+  const rnPass = lower.includes('rn compatibility: pass') || lower.includes('no rn blockers');
+  const flowsPass = lower.includes('core flows: pass') || lower.includes('all complete');
+  const authPass = lower.includes('auth pattern: pass') || lower.includes('migration-compatible');
+  const dataPass = lower.includes('data layer: mapped') || lower.includes('no localstorage');
+  const ready = lower.includes('ready to export');
+  return {
+    rn:     { pass: rnPass,    detail: rnPass    ? 'No blockers found' : 'Blockers may be present — review AUDIT.md manually' },
+    flows:  { pass: flowsPass, detail: flowsPass ? 'Flows appear complete' : 'Check AUDIT.md manually' },
+    auth:   { pass: authPass,  detail: authPass  ? 'Auth pattern compatible' : 'Check auth pattern manually' },
+    data:   { pass: dataPass,  detail: dataPass  ? 'Data layer mapped' : 'Check data layer manually' },
+    verdict: ready ? 'READY_TO_EXPORT' : 'NEEDS_WORK',
+    summary: 'Manual parse (no API key). Review AUDIT.md to confirm.',
+    fixes: ['Review AUDIT.md manually for blockers'],
+    loopSummary: 'Manual parse'
+  };
+}
+
+// ─── Render scores ────────────────────────────────────────────────────────────
+async function renderScores(scores) {
+  state.lastScores = scores;
+  state.currentLoop++;
+  document.getElementById('loopCount').textContent = state.currentLoop;
+
+  // Score cards
+  const criteria = ['rn', 'flows', 'auth', 'data'];
+  criteria.forEach(c => {
+    const ind = document.getElementById('si-' + c);
+    const stat = document.getElementById('ss-' + c);
+    const pass = scores[c]?.pass;
+    ind.className = 'score-indicator ' + (pass ? 'si-pass' : 'si-fail');
+    stat.className = 'score-status ' + (pass ? 'ss-pass' : 'ss-fail');
+    stat.textContent = pass ? 'PASS' : 'FAIL';
+    stat.title = scores[c]?.detail || '';
+  });
+
+  // Verdict banner
+  const banner = document.getElementById('verdictBanner');
+  const title = document.getElementById('verdictTitle');
+  const body = document.getElementById('verdictBody');
+  banner.style.display = 'block';
+
+  if (scores.verdict === 'READY_TO_EXPORT') {
+    banner.className = 'verdict-banner vb-export';
+    title.className = 'verdict-title vt-pass';
+    title.textContent = '✓ READY TO EXPORT';
+    body.textContent = scores.summary;
+    document.getElementById('exportBtn').style.display = 'inline-flex';
+    document.getElementById('loopBtn').style.display = 'none';
+    // Generate HANDOFF.md
+    state.handoffMd = await generateHandoff(scores);
+    document.getElementById('handoffText').textContent = state.handoffMd;
+    document.getElementById('handoffSection').style.display = 'block';
+    document.getElementById('nextPromptSection').style.display = 'none';
+  } else {
+    const blocked = scores.verdict === 'BLOCKED';
+    banner.className = 'verdict-banner ' + (blocked ? 'vb-block' : 'vb-loop');
+    title.className = 'verdict-title ' + (blocked ? 'vt-block' : 'vt-loop');
+    title.textContent = blocked ? '✗ BLOCKED — Fix required' : '↻ NEEDS WORK — Run another loop';
+    body.textContent = scores.summary;
+    document.getElementById('loopBtn').style.display = 'inline-flex';
+    document.getElementById('exportBtn').style.display = 'none';
+    document.getElementById('handoffSection').style.display = 'none';
+    // Generate next Lovable prompt
+    const nextPrompt = buildNextLoopPrompt(scores);
+    document.getElementById('nextPromptText').textContent = nextPrompt;
+    document.getElementById('nextPromptSection').style.display = 'block';
+  }
+
+  // Add to iteration history
+  state.iterations.push({
+    loop: state.currentLoop,
+    verdict: scores.verdict,
+    summary: scores.loopSummary || scores.summary,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+  renderIterHistory();
+}
+
+// ─── Next loop prompt ─────────────────────────────────────────────────────────
+function buildNextLoopPrompt(scores) {
+  const failedCriteria = ['rn', 'flows', 'auth', 'data']
+    .filter(c => !scores[c]?.pass)
+    .map(c => ({ rn: 'RN Compatibility', flows: 'Core Flow Completeness', auth: 'Auth Pattern', data: 'Data Layer' }[c]));
+
+  const fixes = scores.fixes?.length ? scores.fixes.map((f, i) => `${i + 1}. ${f}`).join('\n') : 'See AUDIT.md for details.';
+
+  return `You are fixing specific issues found in the last exit gate review of ${state.appName}. Do NOT redesign, refactor, or touch anything not listed below.
+
+FAILED CRITERIA:
+${failedCriteria.map(c => `- ${c}`).join('\n')}
+
+SPECIFIC FIXES REQUIRED (priority order):
+${fixes}
+
+RULES:
+- Fix only what is listed above. Nothing else.
+- Do not change any UI layout, color, or design.
+- Do not touch features that scored COMPLETE in the last review.
+- After fixing, update AUDIT.md with a new "Exit Gate Review — Loop ${state.currentLoop + 1}" section using the same format as before.
+
+When done, provide the updated AUDIT.md for re-scoring.`;
+}
+
+// ─── Generate HANDOFF.md ──────────────────────────────────────────────────────
+async function generateHandoff(scores) {
+  const features = state.features.length ? state.features.map(f => `- ${f}`).join('\n') : '- (see AUDIT.md)';
+  const date = new Date().toISOString().split('T')[0];
+
+  const base = `# HANDOFF.md — ${state.appName}
+Generated: ${date} | Exit gate loops: ${state.currentLoop}
+
+## App overview
+- **Name:** ${state.appName}
+- **Phase at export:** ${state.appPhase}
+- **Exit gate verdict:** READY TO EXPORT (all criteria passed)
+
+## V1 feature list
+${features}
+
+## Migration checklist
+All of the following were verified clear before export:
+- [x] No window/document/browser-only API usage
+- [x] No localStorage (all data persistence needs Turso tables)
+- [x] No CSS :hover states (use pressed states in React Native)
+- [x] Auth pattern is Clerk-compatible
+- [x] All V1 features complete end-to-end
+
+## Data layer (localStorage → Turso)
+${scores.data?.detail || 'See AUDIT.md for table mapping'}
+
+## Known issues (out of scope for V1 migration)
+- None recorded at export time — see AUDIT.md for any PARTIAL features
+
+## Stack targets
+- Frontend: Expo SDK 54 + Expo Router + NativeWind
+- API: Hono 4.7 on Vercel Edge
+- DB: Turso + Drizzle ORM
+- Auth: Clerk (Apple Sign-In + Google Sign-In required)
+- Payments: RevenueCat
+- Monitoring: Sentry (-app and -api projects)
+
+## Claude Code migration entry point
+Run: \`vd register --app ${state.appName.toLowerCase().replace(/\s/g, '')} --bundle com.vickerydigital.${state.appName.toLowerCase().replace(/\s/g, '')}\`
+Then: \`vd audit ./export --name "${state.appName}"\`
+Then: open Claude Code and run P1 migration prompt from \`vd prompt migrate\`
+
+## LOCKED FILES (do not touch after auth is set up)
+- lib/auth/
+- app/(auth)/
+- middleware/clerk.ts
+- Any file with "locked" comment in header
+`;
+
+  return base;
+}
+
+// ─── Iteration history ────────────────────────────────────────────────────────
+function renderIterHistory() {
+  if (state.iterations.length === 0) return;
+  document.getElementById('iterHistory').style.display = 'block';
+  const list = document.getElementById('iterList');
+  list.innerHTML = state.iterations.map(it => {
+    const cls = it.verdict === 'READY_TO_EXPORT' ? 'iv-pass' : it.verdict === 'BLOCKED' ? 'iv-block' : 'iv-loop';
+    const label = it.verdict === 'READY_TO_EXPORT' ? 'PASS' : it.verdict === 'BLOCKED' ? 'BLOCKED' : 'NEEDS WORK';
+    return `<div class="iter-row">
+      <span class="iter-num">#${it.loop}</span>
+      <span class="iter-verdict ${cls}">${label}</span>
+      <span class="iter-summary">${it.summary}</span>
+      <span class="iter-time">${it.time}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── Loop controls ────────────────────────────────────────────────────────────
+function startNextLoop() {
+  // Reset upload for next iteration
+  document.getElementById('auditFile').value = '';
+  document.getElementById('uploadFilename').style.display = 'none';
+  document.getElementById('scoreBtn').disabled = true;
+  state.auditContent = '';
+  // Update the Lovable prompt for the new loop number
+  document.getElementById('lovablePromptText').textContent = buildLovablePrompt();
+  goToStep(2);
+}
+
+// ─── Copy + download helpers ─────────────────────────────────────────────────
+function copyBlock(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    // brief flash
+    const el = document.getElementById(id);
+    el.style.color = 'var(--green)';
+    setTimeout(() => el.style.color = '', 800);
+  });
+}
+
+function downloadHandoff() {
+  if (!state.handoffMd) return;
+  const blob = new Blob([state.handoffMd], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `HANDOFF-${state.appName.replace(/\s/g, '-').toLowerCase()}.md`;
+  a.click();
+}
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+function resetAll() {
+  state.currentLoop = 0;
+  state.iterations = [];
+  state.auditContent = '';
+  state.handoffMd = '';
+  state.lastScores = null;
+  document.getElementById('loopCount').textContent = '0';
+  document.getElementById('iterHistory').style.display = 'none';
+  document.getElementById('iterList').innerHTML = '';
+  document.getElementById('uploadFilename').style.display = 'none';
+  document.getElementById('auditFile').value = '';
+  document.getElementById('scoreBtn').disabled = true;
+  goToStep(1);
+}
+</script>
+</body>
+</html>

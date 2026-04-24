@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vickery Digital — App Prompt Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Fira+Code:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d0f14; --bg2: #13161d; --surface: #181c26; --surface2: #1e2333;
+  --border: #252b3b; --border2: #2f3650;
+  --accent: #f97316; --accent2: #fb923c;
+  --blue: #60a5fa; --green: #34d399; --purple: #a78bfa; --red: #f87171;
+  --text: #f0f2f8; --muted: #6b7799; --muted2: #9aa3c0;
+  --mono: 'Fira Code', monospace; --sans: 'DM Sans', sans-serif; --display: 'Cabinet Grotesk', sans-serif;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+body::before {
+  content: ''; position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 400px;
+  background: radial-gradient(ellipse, rgba(249,115,22,0.07) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+.page { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; position: relative; z-index: 1; }
+
+/* Header */
+.header { margin-bottom: 32px; }
+.header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.app-badge { font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.app-title { font-family: var(--display); font-size: 32px; font-weight: 900; color: var(--text); line-height: 1.1; }
+.app-sub { font-size: 13px; color: var(--muted2); margin-top: 6px; max-width: 500px; line-height: 1.5; }
+.meta-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.meta-tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 9px; border-radius: 4px; }
+.mt-score { background: rgba(52,211,153,0.12); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+.mt-effort { background: rgba(251,146,60,0.12); color: var(--accent2); border: 1px solid rgba(251,146,60,0.2); }
+.mt-priority { background: rgba(52,211,153,0.12); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+.mt-mode { border-radius: 6px; }
+.mt-mode.convert { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.2); }
+.mt-mode.greenfield { background: rgba(167,139,250,0.12); color: var(--purple); border: 1px solid rgba(167,139,250,0.2); }
+.mt-mode.improve { background: rgba(251,146,60,0.12); color: var(--accent2); border: 1px solid rgba(251,146,60,0.2); }
+
+/* Mode toggle */
+.header-actions { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.mode-toggle { display: flex; background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 3px; gap: 2px; }
+.mode-btn { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 12px; border-radius: 5px; border: none; background: none; color: var(--muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.mode-btn.active { background: var(--accent); color: white; }
+.mode-banner { padding: 10px 16px; background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.15); border-radius: 8px; font-size: 12px; color: var(--blue); margin-bottom: 20px; line-height: 1.5; display: none; }
+.mode-banner.visible { display: block; }
+
+/* Export bar */
+.export-bar {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 18px; margin-bottom: 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.export-label { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--muted2); }
+.export-label span { color: var(--text); }
+.export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Progress */
+.progress-bar-wrap { background: var(--border2); border-radius: 2px; height: 3px; margin-bottom: 6px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 2px; transition: width 0.4s ease; }
+.progress-steps { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 24px; }
+.ps { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border2); color: var(--muted); transition: all 0.2s; cursor: default; }
+.ps.done { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.25); color: var(--green); }
+.ps.active { background: rgba(249,115,22,0.1); border-color: rgba(249,115,22,0.25); color: var(--accent); }
+
+/* Prompt cards */
+.prompt-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; margin-bottom: 16px;
+  animation: slideIn 0.2s ease both;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.prompt-card:nth-child(1) { animation-delay: 0.03s; }
+.prompt-card:nth-child(2) { animation-delay: 0.07s; }
+.prompt-card:nth-child(3) { animation-delay: 0.11s; }
+.prompt-card:nth-child(4) { animation-delay: 0.15s; }
+.prompt-card:nth-child(5) { animation-delay: 0.19s; }
+.prompt-card:nth-child(6) { animation-delay: 0.23s; }
+
+.card-header {
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.card-title { font-family: var(--display); font-size: 14px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.step-badge { font-family: var(--mono); font-size: 10px; background: rgba(249,115,22,0.15); color: var(--accent); border: 1px solid rgba(249,115,22,0.25); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.08em; flex-shrink: 0; }
+.step-badge.convert-badge { background: rgba(96,165,250,0.12); color: var(--blue); border-color: rgba(96,165,250,0.25); }
+.card-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+
+.btn { font-family: var(--mono); font-size: 11px; padding: 6px 11px; border-radius: 6px; border: 1px solid var(--border2); background: var(--surface); color: var(--muted2); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(249,115,22,0.05); }
+.btn.copied { border-color: var(--green); color: var(--green); background: rgba(52,211,153,0.06); }
+.btn.marked { border-color: rgba(52,211,153,0.4); color: var(--green); background: rgba(52,211,153,0.1); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: white; font-family: var(--display); font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 7px; }
+.btn-primary:hover { background: var(--accent2); border-color: var(--accent2); color: white; }
+.btn-secondary { background: var(--surface2); border-color: var(--border2); color: var(--text); font-family: var(--display); font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 7px; }
+.btn-secondary:hover { border-color: var(--muted2); }
+
+.card-body {
+  padding: 16px 18px; font-family: var(--mono); font-size: 11.5px; line-height: 1.8;
+  color: var(--muted2); white-space: pre-wrap; word-break: break-word;
+  max-height: 360px; overflow-y: auto; transition: max-height 0.3s ease;
+}
+.card-body.expanded { max-height: 2000px; }
+.card-hint { padding: 9px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.expand-btn { font-family: var(--mono); font-size: 10px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; letter-spacing: 0.06em; }
+.expand-btn:hover { color: var(--accent2); }
+
+/* Export modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.modal-title { font-family: var(--display); font-size: 16px; font-weight: 800; color: var(--text); }
+.modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; transition: color 0.15s; }
+.modal-close:hover { color: var(--text); }
+.modal-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: 16px 20px; gap: 12px; }
+.modal-textarea { flex: 1; background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; color: var(--muted2); font-family: var(--mono); font-size: 11px; line-height: 1.7; padding: 14px; resize: none; min-height: 300px; }
+.modal-actions { display: flex; gap: 8px; padding: 0 20px 18px; flex-shrink: 0; flex-wrap: wrap; }
+.modal-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* Input Panel (tabs: manual entry vs CSV) */
+.input-panel {
+  background: var(--surface); border: 1.5px solid var(--border2); border-radius: 10px;
+  margin-bottom: 20px; overflow: hidden;
+}
+.input-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.input-tab {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 9px 16px; border: none; background: none; color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s;
+}
+.input-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.input-tab:hover:not(.active) { color: var(--muted2); }
+.input-pane { display: none; padding: 14px 18px; }
+.input-pane.active { display: block; }
+
+/* Manual entry form */
+.manual-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.manual-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
+.manual-field.wide { flex: 2; min-width: 260px; }
+.manual-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.manual-input {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text); font-family: var(--sans); font-size: 13px; padding: 7px 10px;
+  outline: none; transition: border-color 0.15s; width: 100%;
+}
+.manual-input:focus { border-color: var(--accent); }
+.manual-input::placeholder { color: var(--muted); }
+.manual-apply {
+  font-family: var(--display); font-size: 12px; font-weight: 700;
+  padding: 7px 16px; border-radius: 6px; border: none;
+  background: var(--accent); color: white; cursor: pointer; transition: background 0.15s;
+  white-space: nowrap; align-self: flex-end; margin-bottom: 1px;
+}
+.manual-apply:hover { background: var(--accent2); }
+.manual-apply.applied { background: rgba(52,211,153,0.2); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+
+/* CSV zone (now inside tab) */
+.csv-zone {
+  border: 1.5px dashed var(--border2); border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--bg2); transition: border-color 0.15s, background 0.15s;
+}
+.csv-zone.dragover { border-color: var(--accent); background: rgba(249,115,22,0.04); }
+.csv-zone-inner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.csv-icon { font-size: 16px; }
+.csv-label { font-size: 12px; color: var(--muted2); flex: 1; }
+.csv-browse {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 11px; border-radius: 5px; border: 1px solid var(--border2);
+  color: var(--accent); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.csv-browse:hover { background: rgba(249,115,22,0.08); border-color: var(--accent); }
+.csv-app-select { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.csv-select-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); white-space: nowrap; }
+.csv-app-select select {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+  font-family: var(--sans); font-size: 13px; padding: 6px 10px; border-radius: 6px; cursor: pointer; outline: none;
+}
+.csv-app-select select:focus { border-color: var(--accent); }
+.csv-loaded { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.03); }
+.csv-loaded .csv-label { color: var(--green); }
+
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* Refine tab */
+.refine-section {
+  background: var(--surface); border: 1.5px solid var(--border2); border-radius: 10px;
+  padding: 18px; display: flex; flex-direction: column;
+}
+.refine-textarea {
+  font-family: var(--sans); font-size: 13px; line-height: 1.5;
+}
+.refine-error {
+  margin-top: 14px; padding: 10px 14px; font-size: 12px; color: var(--red);
+  background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 8px;
+}
+.mt-mode.refine { background: rgba(52,211,153,0.12); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Input Panel -->
+  <div class="input-panel">
+    <div class="input-tabs">
+      <button class="input-tab active" id="tabManual" onclick="switchTab('manual')">✏️ Type App Details</button>
+      <button class="input-tab" id="tabCsv" onclick="switchTab('csv')">📄 Import CSV</button>
+    </div>
+
+    <!-- Manual entry pane -->
+    <div class="input-pane active" id="paneManual">
+      <div class="manual-row">
+        <div class="manual-field">
+          <span class="manual-label">App Name</span>
+          <input class="manual-input" id="manualName" type="text" placeholder="e.g. MonoLine" oninput="onManualInput()">
+        </div>
+        <div class="manual-field wide">
+          <span class="manual-label">Description — what it does &amp; who it's for</span>
+          <input class="manual-input" id="manualDesc" type="text" placeholder="e.g. One-line daily journal — minimal habit tracker for people who hate journaling" oninput="onManualInput()">
+        </div>
+        <button class="manual-apply" id="manualApplyBtn" onclick="applyManual()">Generate →</button>
+      </div>
+    </div>
+
+    <!-- CSV pane -->
+    <div class="input-pane" id="paneCsv">
+      <div class="csv-zone" id="csvZone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div class="csv-zone-inner">
+          <span class="csv-icon">📄</span>
+          <span class="csv-label">Drop your triage CSV here to load an app</span>
+          <label class="csv-browse">
+            Browse
+            <input type="file" accept=".csv" id="csvFileInput" onchange="onFileSelect(event)" style="display:none">
+          </label>
+        </div>
+        <div class="csv-app-select" id="csvAppSelect" style="display:none">
+          <span class="csv-select-label">Pick an app:</span>
+          <select id="appSelector" onchange="onAppSelect(event)"></select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="app-badge">Vickery Digital · Claude Code Prompt Chain</div>
+        <div class="app-title" id="headerName">MonoLine</div>
+        <div class="app-sub" id="headerSub">One line daily commitment beats feature bloat — strict single-entry constraint breeds habit formation</div>
+        <div class="meta-tags">
+          <span class="meta-tag mt-score" id="headerScore">11 / 12</span>
+          <span class="meta-tag mt-priority" id="headerPriority">SHIP IT</span>
+          <span class="meta-tag mt-effort" id="headerEffort">Effort: S — Quick Build</span>
+          <span class="meta-tag mt-mode greenfield" id="modeBadge">🌿 Lovable Build</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="btnGreenfield" onclick="setMode('greenfield')">🌿 New App (Lovable)</button>
+          <button class="mode-btn" id="btnImprove" onclick="setMode('improve')">🔧 Improve Existing</button>
+          <button class="mode-btn" id="btnConvert" onclick="setMode('convert')">⚡ Already Built (Claude Code)</button>
+          <button class="mode-btn" id="btnRefine" onclick="setMode('refine')">🎯 Refine</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-banner" id="modeBanner">
+    ⚡ <strong>Claude Code migration mode:</strong> Prompt 1 migrates your existing Lovable app to the Vickery Digital stack (Expo + Hono + Turso + Clerk). All UI, logic, and design is preserved — no rebuild. Prompts 2–6 harden and ship the native app.
+  </div>
+  <div class="mode-banner" id="modeBannerImprove" style="background:rgba(251,146,60,0.07);border-color:rgba(251,146,60,0.2);color:var(--accent2);">
+    🔧 <strong>Improve Existing mode:</strong> Prompt 1 audits your current Lovable app against the V1 spec. Prompts 2–5 systematically fix gaps — features, UX, visual polish, accessibility. Prompt 6 generates the handoff doc for Claude Code migration.
+  </div>
+
+  <div class="export-bar">
+    <div class="export-label">6 prompts ready — <span>run in Claude Code in order</span></div>
+    <div class="export-actions">
+      <button class="btn btn-secondary" onclick="openExportModal()">📋 View &amp; Copy All</button>
+      <button class="btn btn-primary" onclick="downloadAll()">⬇ Download .txt</button>
+    </div>
+  </div>
+
+  <div class="progress-bar-wrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="progress-steps" id="progressSteps"></div>
+
+  <div id="promptCards"></div>
+
+  <!-- Refine Mode Panel -->
+  <div id="refinePanel" style="display:none">
+    <div class="refine-section">
+      <div class="manual-field">
+        <span class="manual-label">App Name</span>
+        <input class="manual-input" id="refineAppName" type="text" placeholder="e.g. MonoLine">
+      </div>
+      <div class="manual-field" style="margin-top:12px">
+        <span class="manual-label">CLAUDE.md contents</span>
+        <textarea class="manual-input refine-textarea" id="refineClaude" placeholder="Paste the contents of your app's CLAUDE.md here..." style="min-height:200px;resize:vertical;font-family:var(--mono);font-size:12px;line-height:1.5"></textarea>
+      </div>
+      <div class="manual-field" style="margin-top:12px">
+        <span class="manual-label">What to change</span>
+        <textarea class="manual-input refine-textarea" id="refineChange" placeholder="Describe the feature to add or the problem to fix. Be specific — e.g. &quot;Add an onboarding flow with 3 screens: name entry, goal selection, and notification opt-in&quot;" style="min-height:100px;resize:vertical;line-height:1.5"></textarea>
+      </div>
+      <button class="manual-apply" id="refineGenerateBtn" onclick="generateRefinePrompt()" style="margin-top:14px;align-self:flex-start;padding:9px 20px">Generate Improvement Prompt →</button>
+    </div>
+
+    <div id="refineOutput" style="display:none;margin-top:20px">
+      <div class="prompt-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="step-badge">RESULT</span>
+            Improvement Prompt
+          </div>
+          <div class="card-actions">
+            <button class="btn" id="refineCopyBtn" onclick="copyRefineOutput()">⎘ Copy</button>
+          </div>
+        </div>
+        <div class="card-body expanded" id="refineOutputText" style="max-height:none"></div>
+      </div>
+    </div>
+
+    <div id="refineError" class="refine-error" style="display:none"></div>
+  </div>
+
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal" onclick="closeModalIfBg(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="exportModalTitle">All 6 Prompts — MonoLine</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-note">Select all text below (Cmd/Ctrl+A), then copy — or use the buttons below.</div>
+      <textarea class="modal-textarea" id="exportTextarea" readonly spellcheck="false"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="modalCopyBtn" onclick="copyFromModal()">⎘ Copy All to Clipboard</button>
+      <button class="btn btn-secondary" onclick="downloadAll()">⬇ Download .txt</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── App data ──────────────────────────────────────────────────────────────────
+let APP = {
+  name: 'MonoLine',
+  v1: 'One line daily commitment beats feature bloat; consistency over complexity',
+  differentiator: 'Strict single-entry constraint breeds habit formation',
+  competitors: ['Day One', 'Journey', 'Reflectly', 'Daylio'],
+  acquirer: 'Strategic (wellness/productivity co) or Indie acquirer via Acquire.com',
+  effort: 'S',
+  total: 11,
+  priority: 'SHIP IT',
+  essential: [
+    'Daily prompt system',
+    'Chronological timeline view',
+    'Minimal distraction-free interface',
+    'Export and backup',
+  ],
+  postlaunch: [
+    'Streak tracking',
+    'End-to-end encryption',
+  ],
+};
+
+let csvApps = []; // All apps parsed from CSV
+
+// ── CSV Parsing ───────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  // Parse header row (handle quoted fields)
+  const headers = parseCSVRow(lines[0]).map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  
+  const apps = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseCSVRow(lines[i]);
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = (vals[idx] || '').trim(); });
+    
+    // Map CSV columns to APP shape
+    // Support both our triage CSV format and a simpler format
+    const name = row['name'] || row['app_name'] || row['app'] || '';
+    if (!name) continue;
+    
+    const splitSemicolon = s => s ? s.split(';').map(x => x.trim()).filter(Boolean) : [];
+    const splitComma = s => s ? s.split(',').map(x => x.trim()).filter(Boolean) : [];
+    
+    apps.push({
+      name,
+      v1: row['v1_summary'] || row['v1'] || row['summary'] || row['description'] || '',
+      differentiator: row['differentiator'] || row['diff'] || '',
+      competitors: splitComma(row['competitors'] || row['competitor'] || ''),
+      acquirer: row['acquirer_type'] || row['acquirer'] || '',
+      effort: row['effort'] || '',
+      total: parseInt(row['total'] || row['score'] || '0') || 0,
+      priority: row['priority'] || '',
+      essential: splitSemicolon(row['features_v1_essential'] || row['essential'] || row['features'] || ''),
+      postlaunch: splitSemicolon(row['features_post_launch'] || row['post_launch'] || row['postlaunch'] || ''),
+    });
+  }
+  return apps;
+}
+
+function parseCSVRow(line) {
+  // Handles quoted fields with commas inside
+  const fields = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) {
+      fields.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  fields.push(cur);
+  return fields;
+}
+
+function loadCSV(text, filename) {
+  const apps = parseCSV(text);
+  if (!apps.length) {
+    showCSVError('No apps found in CSV. Check that it has a header row and a "name" column.');
+    return;
+  }
+  
+  csvApps = apps;
+  const zone = document.getElementById('csvZone');
+  zone.classList.add('csv-loaded');
+  zone.querySelector('.csv-label').textContent = `✓ ${filename} — ${apps.length} app${apps.length > 1 ? 's' : ''} loaded`;
+  
+  if (apps.length === 1) {
+    setApp(apps[0]);
+    document.getElementById('csvAppSelect').style.display = 'none';
+  } else {
+    // Show selector
+    const sel = document.getElementById('appSelector');
+    sel.innerHTML = apps.map((a, i) => 
+      `<option value="${i}">${a.name}${a.priority ? ' · ' + a.priority : ''}${a.total ? ' · ' + a.total : ''}</option>`
+    ).join('');
+    document.getElementById('csvAppSelect').style.display = 'flex';
+    setApp(apps[0]);
+  }
+}
+
+function showCSVError(msg) {
+  const zone = document.getElementById('csvZone');
+  zone.querySelector('.csv-label').textContent = '⚠ ' + msg;
+  zone.style.borderColor = 'var(--red)';
+  setTimeout(() => {
+    zone.querySelector('.csv-label').textContent = 'Drop your triage CSV here to load a different app';
+    zone.style.borderColor = '';
+  }, 3000);
+}
+
+function onAppSelect(e) {
+  const idx = parseInt(e.target.value);
+  if (csvApps[idx]) setApp(csvApps[idx]);
+}
+
+function setApp(a) {
+  APP = a;
+  doneState = {};
+  // Keep manual fields in sync regardless of how app was loaded
+  const nameEl = document.getElementById('manualName');
+  const descEl = document.getElementById('manualDesc');
+  if (nameEl) nameEl.value = a.name || '';
+  if (descEl) descEl.value = a.v1 || '';
+  updateHeader();
+  renderAll();
+}
+
+function updateHeader() {
+  document.getElementById('headerName').textContent = APP.name;
+  document.getElementById('headerSub').textContent = [APP.v1, APP.differentiator].filter(Boolean).join(' — ');
+  document.getElementById('headerScore').textContent = APP.total ? APP.total + ' / 12' : '—';
+  document.getElementById('headerPriority').textContent = APP.priority || '—';
+  const effortMap = { S: 'Quick Build', M: 'Medium Build', L: 'Large Build' };
+  document.getElementById('headerEffort').textContent = APP.effort ? `Effort: ${APP.effort} — ${effortMap[APP.effort] || APP.effort}` : '';
+  document.getElementById('headerEffort').style.display = APP.effort ? '' : 'none';
+  document.title = `${APP.name} — Claude Code Prompt Chain`;
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tabManual').classList.toggle('active', tab === 'manual');
+  document.getElementById('tabCsv').classList.toggle('active', tab === 'csv');
+  document.getElementById('paneManual').classList.toggle('active', tab === 'manual');
+  document.getElementById('paneCsv').classList.toggle('active', tab === 'csv');
+}
+
+// ── Manual input ──────────────────────────────────────────────────────────────
+let manualDebounce = null;
+
+function onManualInput() {
+  // Reset apply button state on new input
+  const btn = document.getElementById('manualApplyBtn');
+  btn.textContent = 'Generate →';
+  btn.classList.remove('applied');
+  // Live-update after short delay
+  clearTimeout(manualDebounce);
+  manualDebounce = setTimeout(() => {
+    const name = document.getElementById('manualName').value.trim();
+    if (name) applyManual(true);
+  }, 600);
+}
+
+function applyManual(silent) {
+  const name = document.getElementById('manualName').value.trim();
+  const desc = document.getElementById('manualDesc').value.trim();
+  if (!name) {
+    document.getElementById('manualName').focus();
+    return;
+  }
+  // Build a minimal APP object from the two fields
+  const appFromManual = {
+    name,
+    v1: desc || name,
+    differentiator: desc || name,
+    competitors: [],
+    acquirer: '',
+    effort: '',
+    total: 0,
+    priority: '',
+    essential: [],
+    postlaunch: [],
+  };
+  setApp(appFromManual);
+  if (!silent) {
+    const btn = document.getElementById('manualApplyBtn');
+    btn.textContent = '✓ Generated';
+    btn.classList.add('applied');
+    setTimeout(() => { btn.textContent = 'Generate →'; btn.classList.remove('applied'); }, 2000);
+  }
+}
+
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('csvZone').classList.add('dragover');
+}
+function onDragLeave(e) {
+  document.getElementById('csvZone').classList.remove('dragover');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('csvZone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) readCSVFile(file);
+}
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) readCSVFile(file);
+}
+function readCSVFile(file) {
+  if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
+    showCSVError('Please drop a .csv file.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => loadCSV(ev.target.result, file.name);
+  reader.readAsText(file);
+}
+
+
+// ── Mode ──────────────────────────────────────────────────────────────────────
+let mode = 'greenfield';
+let doneState = {};
+let allPrompts = [];
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnGreenfield').classList.toggle('active', m === 'greenfield');
+  document.getElementById('btnConvert').classList.toggle('active', m === 'convert');
+  document.getElementById('btnImprove').classList.toggle('active', m === 'improve');
+  document.getElementById('btnRefine').classList.toggle('active', m === 'refine');
+  document.getElementById('modeBanner').classList.toggle('visible', m === 'convert');
+  document.getElementById('modeBannerImprove').classList.toggle('visible', m === 'improve');
+  const badge = document.getElementById('modeBadge');
+  const labels = { greenfield: '🌿 Lovable Build', improve: '🔧 Improve Existing', convert: '⚡ Claude Code Migration', refine: '🎯 Refine' };
+  badge.textContent = labels[m];
+  badge.className = 'meta-tag mt-mode ' + m;
+
+  // Toggle refine vs prompt-chain views
+  const isRefine = m === 'refine';
+  document.getElementById('refinePanel').style.display = isRefine ? 'block' : 'none';
+  document.querySelector('.input-panel').style.display = isRefine ? 'none' : '';
+  document.querySelector('.export-bar').style.display = isRefine ? 'none' : '';
+  document.querySelector('.progress-bar-wrap').style.display = isRefine ? 'none' : '';
+  document.getElementById('progressSteps').style.display = isRefine ? 'none' : '';
+  document.getElementById('promptCards').style.display = isRefine ? 'none' : '';
+
+  if (!isRefine) {
+    doneState = {};
+    renderAll();
+  }
+}
+
+// ── Prompt data ───────────────────────────────────────────────────────────────
+const VD_STACK = `VICKERY DIGITAL CANONICAL STACK (non-negotiable — deviations must be documented in CLAUDE.md):
+- Native frontend: Expo SDK 54 + Expo Router (file-based navigation)
+- API: Hono 4.7 on Vercel Edge (separate Vercel project per app, no cold starts)
+- Database: Turso/libSQL — ONE dedicated database for this app, never shared
+- ORM: Drizzle ORM (type-safe queries + migrations, idempotent)
+- Auth: Clerk (Apple Sign-In + Google Sign-In — both required for App Store compliance)
+  - Each app gets its own Clerk application instance within the Vickery Digital org
+  - JWT verification handled by shared auth.ts middleware in Hono
+- Push: Expo Push Notification Service (free, abstracts APNs/FCM — do NOT use Web Push)
+- Storage: Cloudflare R2 (if file storage needed)
+- Subscriptions: RevenueCat (this app gets its OWN RevenueCat project — never aggregate)
+- Monitoring: Sentry free tier
+- Build/deploy: Expo EAS Build for signing + TestFlight submission
+
+ACQUISITION REQUIREMENTS (build for clean sale from day one):
+- This app's Turso DB is fully isolated — buyer gets one DB URL, one set of credentials
+- RevenueCat project is per-app — revenue maps cleanly to this product alone
+- CLAUDE.md is the acquisition technical documentation
+- Clerk transfer plan must be documented (Clerk apps can transfer between orgs)
+- Track monthly retention and churn from launch day`;
+
+const VD_CLAUDEMD = `CLAUDE.md MUST CONTAIN:
+1. App name, problem statement, differentiator (one sentence each)
+2. Full tech stack with exact versions
+3. Folder structure with one-line purpose per directory
+4. Every Turso/libSQL table: name, columns, types, indexes, relationships, purpose
+5. Every Hono API route: method, path, auth required (y/n), request shape (Zod schema), response shape, rate limited (y/n)
+6. Auth flow: how Clerk JWT flows from client → Hono middleware → route handler
+7. Push notification flow: trigger condition → Hono route → token query → Expo Push call
+8. Every environment variable: key name, what it is, where to get it
+9. Local dev setup: exact commands from fresh clone to running simulator
+10. EAS build + TestFlight submission steps
+11. Turso migration workflow: how to create and run migrations
+12. RevenueCat setup: project name, product IDs, entitlement IDs
+13. Known limitations and post-launch roadmap items`;
+
+function buildPrompts(a, m) {
+  const comp = a.competitors.join(', ');
+  const ess = a.essential.map((f,i) => `${i+1}. ${f}`).join('\n');
+  const post = a.postlaunch.map((f,i) => `${i+1}. ${f}`).join('\n');
+  const slug = a.name.toLowerCase().replace(/\s+/g,'-');
+
+  // ── LOVABLE PROMPTS (New App — building in Lovable first) ─────────────────
+  if (m === 'greenfield') {
+    return [
+      {
+        id:'p1', step:'Prompt 1 of 6', title:'Scaffold & Core UI in Lovable',
+        isConvert: false,
+        hint:'Paste into Lovable. Sets the full app structure, navigation, and design system.',
+        text:`You are building a React web app in Lovable. This app will eventually be converted to a React Native / Expo app for the App Store, so keep components clean, logic separated from UI, and avoid web-only APIs (no window, no document, no CSS animations that can't translate to RN).
+
+═══════════════════════════════════════
+APP
+═══════════════════════════════════════
+Name: ${a.name}
+Problem: ${a.v1}
+Differentiator vs ${comp}: ${a.differentiator}
+
+═══════════════════════════════════════
+TECH STACK (Lovable defaults — use these exactly)
+═══════════════════════════════════════
+- React + Vite + TypeScript (strict mode)
+- Tailwind CSS for styling
+- shadcn/ui for components
+- React Router for navigation
+- Zustand for global state
+- React Query (TanStack Query) for data fetching
+- localStorage for persistence (will be replaced with real DB later)
+- lucide-react for icons (one library only — no mixing)
+
+═══════════════════════════════════════
+YOUR TASK — COMPLETE SCAFFOLD
+═══════════════════════════════════════
+1. Set up the full project structure:
+   /src/components    — Reusable UI components
+   /src/pages         — One file per route/screen
+   /src/hooks         — Custom hooks (useEntries, useAuth, etc.)
+   /src/store         — Zustand stores
+   /src/lib           — Utilities, constants, API client stubs
+   /src/types         — TypeScript interfaces and types
+
+2. Create a constants file at /src/lib/constants.ts with ALL:
+   - Color values (even though Tailwind classes are used, document the palette here)
+   - App name, tagline, and any copy strings
+   - localStorage key names (one place only — never hardcode these elsewhere)
+   - Any numeric values (debounce timers, limits, etc.)
+
+3. Set up React Router with routes for every V1 screen:
+V1 FEATURES (build full page stubs with correct navigation):
+${ess}
+
+POST-LAUNCH (stub pages with "Coming soon" — include in nav so structure is clear):
+${post}
+
+4. Build the global layout:
+   - App shell with navigation (bottom nav on mobile, sidebar on desktop)
+   - Loading state component (skeleton, not spinner)
+   - Error boundary at root
+   - Toast notification system (success, error, warning, info variants)
+
+5. Define all TypeScript interfaces in /src/types/index.ts for every data model this app will need.
+
+6. Set up localStorage persistence:
+   - All reads/writes go through a single /src/lib/storage.ts utility
+   - Every function is wrapped in try/catch with graceful fallbacks
+   - App never crashes from a storage failure
+   - Export/import helpers for the backup feature
+
+7. Design system:
+   - Choose a color palette that feels calm, minimal, and intentional — this is a journaling app
+   - Tailwind config extended with custom colors
+   - Typography scale: 3 sizes max (heading, body, meta)
+   - Consistent border-radius across all cards and inputs
+   - One shadow style used everywhere
+
+DONE WHEN: App runs in browser with all routes navigable · No TypeScript errors · localStorage read/write working · Design system applied consistently · List every decision made
+
+═══════════════════════════════════════
+SAVE YOUR WORK — WRITE /PLAN.md
+═══════════════════════════════════════
+Before finishing, write a file called /PLAN.md in the project root.
+This file is your memory across Lovable sessions. Every subsequent prompt will read it first.
+
+/PLAN.md must contain:
+1. App name, problem, differentiator (one sentence each)
+2. Every decision made during this scaffold (colors, fonts, spacing, border-radius, shadow)
+3. Full folder structure with one-line purpose per directory
+4. Every TypeScript interface defined in /src/types/index.ts (paste verbatim)
+5. Every localStorage key name and its data shape
+6. Every route: path, component name, purpose
+7. Every Zustand store: name, state shape, actions
+8. Design system: exact Tailwind color tokens used, typography scale, spacing rhythm
+9. What is complete vs what is stubbed
+10. Open questions or decisions deferred to later prompts`
+      },
+      {
+        id:'p2', step:'Prompt 2 of 6', title:'Core Features Implementation',
+        isConvert: false,
+        hint:'Read PLAN.md first. Build all V1 features fully — real logic, real data, no placeholders.',
+        text:`You are continuing development of ${a.name} in Lovable.
+
+FIRST: Read /PLAN.md in the project root. This is your memory from the previous session — it contains every decision already made, the data models, folder structure, and design system. Do not re-derive anything that is already documented there. Do not contradict decisions in PLAN.md without a good reason.
+
+The scaffold is in place. Now implement all V1 features completely — no stubs, no "TODO", no placeholder data.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Core loop: ${a.v1}
+What must feel better than ${comp}: ${a.differentiator}
+
+═══════════════════════════════════════
+IMPLEMENT THESE FEATURES COMPLETELY:
+═══════════════════════════════════════
+${ess}
+
+FOR EACH FEATURE:
+- Full working UI using shadcn/ui + Tailwind
+- Real state management via Zustand store
+- Data persisted to localStorage through the storage.ts utility (no direct localStorage calls)
+- Optimistic updates: update UI immediately, persist in background
+- Proper loading states: skeleton screens shaped like the actual content (not spinners)
+- Empty states for every list: icon (lucide-react) + friendly headline + one-sentence explanation + CTA
+- Error states that tell the user what to do, not just "Something went wrong"
+
+EDGE CASES — handle all of these:
+- 0 items: intentional empty state (not just a blank screen)
+- 1 item: layout works, no orphaned UI elements
+- Very long text: truncate with ellipsis + "Read more" expansion
+- Very short input: validate minimum length with helpful inline message
+- User returns after weeks away: app state restores correctly from localStorage
+
+COMPONENT RULES (for clean React Native conversion later):
+- No component file exceeds 200 lines — split if larger
+- No prop drilling deeper than 2 levels — use Zustand store
+- Zero web-only APIs: no window.xxx, no document.xxx, no CSS :hover in inline styles
+- All click handlers named onPress (not onClick) to mirror React Native convention
+
+DONE WHEN: All V1 features fully working · Data persists across page refresh · All edge cases handled · No TypeScript errors · No console errors
+
+UPDATE /PLAN.md: Add a "Features Built" section listing every feature completed, every component created, every hook extracted, and any new decisions made. Do not overwrite existing sections — append only.`
+      },
+      {
+        id:'p3', step:'Prompt 3 of 6', title:'UX Polish & Interactions',
+        isConvert: false,
+        hint:'Read PLAN.md first. Walk every flow as a first-time user. Kill friction before the visual pass.',
+        text:`You are a senior UX engineer refining ${a.name} in Lovable.
+
+FIRST: Read /PLAN.md. Use it to understand what has been built, what decisions were made, and what is still pending. Do not re-do work already marked complete.
+
+Walk through every user flow as if you have never seen this app. Fix every place that creates friction, confusion, or dead ends.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Users are coming from: ${comp}
+What must feel dramatically better: ${a.differentiator}
+
+═══════════════════════════════════════
+AUDIT AND FIX EVERY FLOW:
+═══════════════════════════════════════
+- Reduce clicks wherever possible — every unnecessary click is friction
+- Surface buried actions — anything used daily should be reachable in ≤2 taps
+- Add confirmation dialogs (shadcn AlertDialog) before every destructive action
+- Every screen has a clear next step — nothing dead-ends
+
+═══════════════════════════════════════
+IMPLEMENT THESE INTERACTIONS:
+═══════════════════════════════════════
+AUTOSAVE
+- Debounce all form inputs (400ms) and auto-save to localStorage via storage.ts
+- Subtle "Saved ✓" indicator that fades out after 1.5s (Tailwind transition, no libraries)
+
+UNDO
+- After every destructive action: toast appears with "Undo" button, auto-dismisses after 5s
+- Undo restores the item from a temporary in-memory buffer (not localStorage)
+- Keyboard shortcut: Cmd/Ctrl+Z triggers undo
+
+KEYBOARD SHORTCUTS
+- Cmd/Ctrl+N: primary create action
+- Escape: closes any open modal or dialog
+- "?": opens a keyboard shortcuts reference modal (shadcn Dialog)
+- All shortcuts work via useEffect keydown listener in a global hook
+
+RETURNING USER
+- User returning after 7+ days: subtle inline message (not a modal popup) acknowledging the gap
+
+OFFLINE
+- Detect navigator.onLine — show a subtle banner when offline
+- All writes queue to localStorage, noting they're pending sync
+- On reconnect: banner disappears, "Syncing..." appears briefly
+
+EDGE CASES:
+- Interrupted flows: user navigates away mid-form — state preserved in Zustand, restored on return
+- Paste from clipboard: long pasted content handled gracefully (truncate or scroll)
+
+DONE WHEN: Every flow walked end-to-end · Autosave and undo working · Keyboard shortcuts all functional · Offline state handled · No dead-end screens
+
+UPDATE /PLAN.md: Add a "UX Changes" section — every friction point fixed, every interaction added, every edge case handled. Append only, do not overwrite.`
+      },
+      {
+        id:'p4', step:'Prompt 4 of 6', title:'Visual Design & Polish',
+        isConvert: false,
+        hint:'Read PLAN.md first. Make it feel like one person designed every pixel. This pass makes the screenshots.',
+        text:`You are a senior product designer refining ${a.name} in Lovable.
+
+FIRST: Read /PLAN.md. Use the design system section (colors, typography, spacing, border-radius, shadow) as your constraints — do not invent a new system, refine the one that exists. This pass makes the app look like it was designed by one person who cared deeply about every detail. This is what App Store screenshots will be taken from.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Competes with: ${comp}
+The single feeling it must communicate: ${a.differentiator}
+
+═══════════════════════════════════════
+VISUAL DESIGN PASS:
+═══════════════════════════════════════
+SPACING
+Audit every screen. Apply an 8px base spacing rhythm everywhere. Nothing looks accidentally placed. Related elements are visually grouped. Generous whitespace — this is a calm, focused app.
+
+TYPOGRAPHY
+Max 3 sizes in use. Clear hierarchy: heading / body / metadata. Never pure black (#000) for text — use a dark gray. Font weights create hierarchy, not just size. Line height: 1.5 for body, 1.2 for headings.
+
+COLOR
+This is a minimal journaling app — the color palette should be calm and purposeful. Every color earns its place. Interactive elements share one consistent color. Status colors (success/error/warning) are intuitive. Background layering: page → card → elevated surface each feel like a distinct depth.
+
+SHAPE & SHADOW
+One border-radius value for cards and inputs. Shadows are soft (shadow-sm, shadow-md — nothing dramatic). Clickable elements look different from static ones (cursor, subtle background on hover).
+
+DARK MODE
+Implement full dark mode using Tailwind's dark: classes. Toggle in header or settings. Dark palette is purpose-built — not just inverting colors. Surfaces layer clearly in dark mode.
+
+MOTION
+- List items: fade + slide in on mount (Tailwind transition, 150ms)
+- Modal/dialog: scale + fade entrance (200ms)
+- Hover states: transition-colors duration-150 on all interactive elements
+- Nothing exceeds 300ms
+- Toast: slides in from bottom-right, stacks cleanly, has progress bar countdown
+
+EMPTY STATES
+Every list and data view has an intentional empty state:
+- Inline SVG illustration (simple, geometric, matches app aesthetic)
+- Friendly headline ("Your timeline is empty")
+- One-sentence explanation
+- CTA button
+
+DONE WHEN: App looks polished enough for App Store screenshots · Dark mode working · Motion system consistent · All empty states designed · No visual inconsistencies
+
+UPDATE /PLAN.md: Add a "Visual Polish" section — final hex values used, any design system changes made, dark mode token decisions. Append only.`
+      },
+      {
+        id:'p5', step:'Prompt 5 of 6', title:'Accessibility, Performance & Export',
+        isConvert: false,
+        hint:'Read PLAN.md first. Make it solid before handoff to Claude Code. A11y, perf, and the export/backup feature.',
+        text:`You are a senior engineer doing a pre-handoff quality pass on ${a.name} in Lovable.
+
+FIRST: Read /PLAN.md. Check the "What is complete vs stubbed" and any open questions sections. This pass closes everything open and ensures the codebase is migration-ready. This app will be migrated to React Native next.
+
+═══════════════════════════════════════
+ACCESSIBILITY
+═══════════════════════════════════════
+- Every interactive element: keyboard focusable, correct ARIA role
+- Every icon: aria-label or aria-hidden (if decorative and paired with text)
+- Every form input: associated <label> (not placeholder as label)
+- All modals: role="dialog", aria-modal="true", focus trapped, focus returns to trigger on close
+- Dynamic content (toasts, search results): aria-live regions
+- Focus rings: visible, consistent with brand color (outline-ring in Tailwind)
+- All clickable areas: minimum 44×44px hit target
+
+═══════════════════════════════════════
+PERFORMANCE
+═══════════════════════════════════════
+- Audit for unnecessary re-renders: use React.memo on list items, useMemo for derived data
+- Move expensive computations (sorting, filtering) outside render with useMemo
+- Virtualize any list that could exceed 50 items (use @tanstack/react-virtual)
+- All images: lazy loaded with loading="lazy"
+- Remove all unused imports and dead code
+
+═══════════════════════════════════════
+EXPORT & BACKUP FEATURE (V1 Essential)
+═══════════════════════════════════════
+Implement the export and backup feature completely:
+- Export all entries as JSON (full fidelity, importable back)
+- Export as plain text (.txt, one entry per section)
+- Export as Markdown (.md, formatted with dates as headers)
+- Import: accept a JSON file, validate structure, merge with existing data (no duplicates)
+- All export functions live in /src/lib/export.ts
+
+═══════════════════════════════════════
+MIGRATION READINESS (critical for React Native conversion)
+═══════════════════════════════════════
+Audit the entire codebase for migration blockers. Fix all of these:
+- Any window.xxx or document.xxx references → abstract behind a platform utility
+- Any CSS-only interactions (hover states, focus styles) → ensure logic equivalents exist in JS
+- Any <a href> navigation → ensure React Router Link is used consistently
+- Any inline event handlers using browser-specific APIs → refactor to pure functions
+- All data access going through storage.ts (no raw localStorage calls anywhere)
+- All types exported from /src/types/index.ts
+
+DONE WHEN: Accessibility audit passing · Performance optimized · Export feature complete · Zero migration blockers · List every change made
+
+UPDATE /PLAN.md: Mark all previously stubbed items as complete or note if still pending. Add a "Migration Blockers Resolved" section listing every fix made. Append only.`
+      },
+      {
+        id:'p6', step:'Prompt 6 of 6', title:'Final Review & Handoff Docs',
+        isConvert: false,
+        hint:'Read PLAN.md first. Product expert review + generates handoff doc for the Claude Code migration.',
+        text:`You are a senior product strategist and engineer doing a final review of ${a.name} before it is handed off for React Native conversion and App Store submission. You have two jobs: product review and handoff documentation.
+
+FIRST: Read /PLAN.md. The HANDOFF.md you write should be consistent with and extend PLAN.md — not contradict it. Pull the data models, design tokens, and component list from PLAN.md directly rather than re-deriving them.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Problem: ${a.v1}
+Differentiator vs ${comp}: ${a.differentiator}
+Target acquirer: ${a.acquirer}
+
+═══════════════════════════════════════
+PART 1 — PRODUCT REVIEW
+═══════════════════════════════════════
+Review the app in four phases:
+
+PHASE 1 — UNDERSTAND
+State in your own words: what this app does, who it's for, what problem it solves. Identify the core user loop. If the core loop has friction, nothing else matters. Evaluate it ruthlessly.
+
+PHASE 2 — SCRUTINY AUDIT
+- Value clarity: Would a new user understand the app within 10 seconds?
+- Core loop quality: Is the primary action fast, satisfying, low-friction?
+- Trust: Does the app feel reliable? Would a user trust it with real journal entries?
+- Feature completeness: What will users immediately want that the app can't do? Separate blockers from nice-to-haves.
+- Edge cases: 0 entries, 1 entry, 500+ entries. Long entries, short entries. Returning after weeks.
+- User journey: discovery → first entry → daily use → returning → wanting to export → recommending to a friend. Where does it break?
+- Differentiation: What makes this worth choosing over ${comp}?
+
+PHASE 3 — FEATURE OPPORTUNITIES
+Propose meaningful additions that would increase retention. For each: what it is, who it serves, why it increases retention, complexity (low/medium/high), launch blocker vs near-term vs vision.
+
+PHASE 4 — LAUNCH VERDICT
+Ready to hand off / Hand off with caveats / Not ready. Be specific. End with one honest sentence.
+
+═══════════════════════════════════════
+PART 2 — HANDOFF DOCUMENT FOR REACT NATIVE MIGRATION
+═══════════════════════════════════════
+Write a complete handoff document that will be given to Claude Code for the React Native migration. Save it as /HANDOFF.md. Include:
+
+1. App overview: name, problem, differentiator, target acquirer
+2. Current tech stack: React + Vite + TS + Tailwind + shadcn + Zustand + React Query + localStorage
+3. Full folder structure with one-line purpose per directory
+4. Every data model: TypeScript interfaces as-is from /src/types/index.ts
+5. localStorage schema: every key, its shape, and purpose
+6. Every component: name, what it renders, what props it accepts
+7. Every Zustand store: name, state shape, actions
+8. Every custom hook: name, what it does, what it returns
+9. Known limitations: what localStorage can't do that a real DB will fix
+10. Migration notes: anything that will need special attention in the RN conversion
+11. Design decisions: color palette (hex values), typography scale, spacing system, border-radius
+
+DONE WHEN: Product review complete with clear verdict · HANDOFF.md written and saved · App is ready for React Native migration
+
+Note: HANDOFF.md is the final authoritative doc. It supersedes PLAN.md and is what Claude Code will receive.`
+      },
+    ];
+  }
+
+  // ── IMPROVE PROMPTS (Existing Lovable app → V1-ready for Claude Code handoff) ─
+  if (m === 'improve') {
+    return [
+      {
+        id:'p1', step:'Prompt 1 of 6', title:'Audit — Current State Assessment',
+        isConvert: false,
+        hint:'Paste into Lovable. Do not change any code yet — this is a read-only audit.',
+        text:`You are a senior product engineer auditing an existing Lovable app called "${a.name}". Your job right now is ASSESSMENT ONLY. Do not change any code. Read everything, then produce a structured audit report.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Name: ${a.name}
+Goal: ${a.v1}
+Differentiator vs ${comp}: ${a.differentiator}
+Target acquirer: ${a.acquirer}
+
+V1 FEATURES THAT MUST EXIST:
+${ess}
+
+POST-LAUNCH (should NOT be built yet — flag if they were):
+${post}
+
+═══════════════════════════════════════
+AUDIT — READ EVERY FILE, THEN REPORT:
+═══════════════════════════════════════
+
+SECTION 1 — WHAT EXISTS
+List every screen and component currently in the project. For each: name, what it does, completion status (complete / partial / stub).
+
+SECTION 2 — V1 FEATURE GAP ANALYSIS
+For each V1 feature listed above:
+- Status: Complete / Partial / Missing
+- If partial: exactly what is working and what is not
+- If missing: confirm it is absent
+
+SECTION 3 — BUG INVENTORY
+List every broken interaction, error state, layout issue, or console error you can find. Be specific: which component, what happens, what should happen.
+
+SECTION 4 — UX FRICTION POINTS
+Walk every user flow as a first-time user. List every place with confusion, dead ends, missing empty states, or unnecessary steps.
+
+SECTION 5 — VISUAL INCONSISTENCIES
+List every place where spacing, color, typography, or component style is inconsistent or incomplete.
+
+SECTION 6 — CODE QUALITY FLAGS
+- Components over 200 lines
+- Prop drilling deeper than 2 levels
+- Hardcoded values that should be constants
+- Direct localStorage calls outside a utility
+- Web-only APIs that will break in React Native (window, document, CSS hover)
+- Any TODOs, console.logs, dead code
+
+SECTION 7 — MIGRATION BLOCKERS
+List anything that will cause problems when this app is converted to React Native. Specifically: web-only APIs, browser-specific event handlers, CSS-only interactions, non-portable libraries.
+
+SECTION 8 — PRIORITY ORDER
+Given everything above, list the top 10 things to fix in priority order. Label each: BLOCKER / HIGH / MEDIUM / LOW.
+
+SECTION 9 — VERDICT
+One honest paragraph: is this app close to V1-ready, halfway there, or needs significant work? What is the single most important thing standing between this and a clean Claude Code handoff?
+
+DO NOT CHANGE ANY CODE. Output the audit report only.
+
+═══════════════════════════════════════
+SAVE YOUR WORK — WRITE /AUDIT.md
+═══════════════════════════════════════
+When your audit report is complete, save the ENTIRE report as /AUDIT.md in the project root. Do not summarise — write every section in full. This file is your memory across Lovable sessions. Every subsequent prompt will read it before making any changes.`
+      },
+      {
+        id:'p2', step:'Prompt 2 of 6', title:'Fix — Missing Features & Broken Logic',
+        isConvert: false,
+        hint:'Read AUDIT.md first. Reference audit findings — fix all BLOCKER and HIGH priority feature gaps.',
+        text:`You are a senior React engineer fixing ${a.name} in Lovable.
+
+FIRST: Read /AUDIT.md in the project root. This is the complete audit from the previous session. Work through it section by section. Do not re-audit — fix what it found. Reference it by section name when making each change (e.g. "Fixing SECTION 3 Bug #2 — ...").
+
+You have just completed an audit. Now fix all missing features and broken logic.
+
+═══════════════════════════════════════
+V1 FEATURES — MAKE EVERY ONE COMPLETE:
+═══════════════════════════════════════
+${ess}
+
+FOR EACH INCOMPLETE OR MISSING FEATURE:
+- Implement it fully — no stubs, no TODOs, no placeholder data
+- Wire to real state (Zustand store) and persistence (localStorage via storage.ts utility)
+- Optimistic updates: update UI immediately, persist in background
+- Loading states: skeleton screens shaped like the actual content (not spinners)
+- Empty states: icon + friendly headline + one-sentence explanation + CTA button
+- Error states: helpful and actionable — not just "Something went wrong"
+
+FOR EACH BUG FROM THE AUDIT:
+- Fix it completely
+- Test the fix: describe what you did and how you verified it works
+
+EDGE CASES — handle all of these for every feature:
+- 0 items: intentional empty state, not a blank screen
+- Very long text: truncate with "Read more" expansion
+- Very short / invalid input: inline validation message
+- User navigates away mid-flow: state preserved in Zustand on return
+
+CODE STANDARDS (critical for React Native conversion later):
+- No component over 200 lines — split if larger
+- No prop drilling over 2 levels — use Zustand store
+- All localStorage access through storage.ts — no raw calls anywhere
+- All hardcoded values moved to constants/index.ts
+- Zero web-only APIs: no window.xxx, no document.xxx
+- All click handlers named onPress (not onClick) to mirror React Native
+
+DONE WHEN: Every V1 feature complete · Every audit bug fixed · All edge cases handled · No TypeScript errors · No console errors
+
+UPDATE /AUDIT.md: Append a "## P2 — Features Fixed" section. For each item from Sections 2 and 3 of the audit: mark ✓ resolved or ⚠ partially resolved (explain why). Note any new issues discovered. Append only — do not modify the original audit.`
+      },
+      {
+        id:'p3', step:'Prompt 3 of 6', title:'Fix — UX, Interactions & Data Integrity',
+        isConvert: false,
+        hint:'Read AUDIT.md first. Kill all friction. Every flow should feel obvious to a first-time user.',
+        text:`You are a senior UX engineer fixing ${a.name} in Lovable.
+
+FIRST: Read /AUDIT.md. Work through Sections 4 (UX Friction Points) and 7 (Migration Blockers) specifically. Every item listed there must be resolved in this pass. Reference each by section and item number as you fix it.
+
+Features are now complete. Fix every friction point and make interactions feel polished and reliable.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Users are coming from: ${comp}
+What must feel dramatically better: ${a.differentiator}
+
+═══════════════════════════════════════
+FIX EVERY UX FRICTION POINT FROM THE AUDIT.
+THEN ENSURE THESE ARE ALL IN PLACE:
+═══════════════════════════════════════
+
+NAVIGATION & FLOWS
+- Every screen has a clear next step — nothing dead-ends
+- Reduce clicks wherever possible — anything used daily must be ≤2 taps
+- Back navigation works correctly everywhere
+- Confirmation dialogs (shadcn AlertDialog) before every destructive action
+
+AUTOSAVE
+- Debounce all form inputs (400ms) — autosave to localStorage via storage.ts
+- Subtle "Saved ✓" indicator that fades out after 1.5s
+
+UNDO
+- Toast with "Undo" button appears for 5s after every destructive action
+- Undo restores from in-memory buffer (not localStorage re-read)
+- Keyboard: Cmd/Ctrl+Z triggers undo globally
+
+KEYBOARD SHORTCUTS
+- Cmd/Ctrl+N: primary create action
+- Escape: closes any open modal or dialog
+- "?": opens keyboard shortcut reference (shadcn Dialog)
+- All via useEffect keydown listener in a global hook
+
+OFFLINE
+- Detect navigator.onLine — show subtle banner when offline
+- All writes queue to localStorage noting they're pending sync
+- Banner disappears on reconnect
+
+RETURNING USER
+- User returning after 7+ days: subtle inline message (not a modal)
+
+DATA INTEGRITY
+- All storage.ts reads/writes wrapped in try/catch with graceful fallbacks
+- App never crashes from a storage failure
+- State restores correctly after page refresh — test this for every feature
+
+MIGRATION READINESS — fix every blocker from the audit:
+- Replace all window.xxx and document.xxx with portable equivalents
+- Replace CSS-only interactions with JS equivalents
+- Ensure all data access goes through storage.ts (zero raw localStorage calls)
+- All types exported from /src/types/index.ts
+
+DONE WHEN: Every flow is dead-end-free · Autosave and undo working · Offline handled · All migration blockers fixed · App never crashes from storage failure
+
+UPDATE /AUDIT.md: Append a "## P3 — UX & Migration Fixes" section. Mark each item from Sections 4 and 7 as ✓ resolved or ⚠ partial. Note any new friction discovered. Append only.`
+      },
+      {
+        id:'p4', step:'Prompt 4 of 6', title:'Fix — Visual Design & Consistency',
+        isConvert: false,
+        hint:'Read AUDIT.md first. Make every screen look intentional. Fix all visual inconsistencies from the audit.',
+        text:`You are a senior product designer fixing ${a.name} in Lovable.
+
+FIRST: Read /AUDIT.md. Work through Section 5 (Visual Inconsistencies) specifically — every item listed there must be fixed. Also check the P2 and P3 append sections to understand what has already been resolved.
+
+UX and features are solid. Now make it look like one person designed every pixel with care.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+The single feeling this app must communicate: ${a.differentiator}
+It competes with: ${comp} — it must feel more intentional, not just different.
+
+═══════════════════════════════════════
+FIX ALL VISUAL INCONSISTENCIES FROM THE AUDIT.
+THEN ENFORCE THESE STANDARDS EVERYWHERE:
+═══════════════════════════════════════
+
+SPACING
+Apply one consistent spacing rhythm (8px base unit) to every screen. Nothing looks accidentally placed. Related elements closer than unrelated ones. Generous whitespace — calm, focused product.
+
+TYPOGRAPHY
+Maximum 3 sizes in use across the entire app. Clear hierarchy: heading / body / metadata. Never pure black (#000) for text — use a dark gray. Font weights create hierarchy. Line height 1.5 for body, 1.2 for headings. No orphaned words on short lines.
+
+COLOR
+Audit every color in use. Remove any that don't earn their place. One consistent color for all interactive elements. Status colors (success/error/warning/info) are consistent and intuitive across all toasts, banners, and inline messages.
+
+SHAPE & SHADOW
+One border-radius value for all cards and inputs — apply it everywhere. Shadows are soft (shadow-sm or shadow-md). Clickable elements look visually distinct from static ones (cursor, hover state).
+
+EMPTY STATES
+Every list and data view has an intentional empty state:
+- Inline SVG illustration (simple, geometric, matches app aesthetic)
+- Friendly headline
+- One-sentence explanation
+- CTA button
+
+DARK MODE
+Ensure dark mode is purpose-built — not just CSS invert or opacity changes. Both light and dark feel complete and intentional. Smooth transition between modes.
+
+MOTION
+- List items: fade + slide entrance (150ms)
+- Modals: scale + fade (200ms)
+- Hover/press: transition-colors duration-150 on all interactive elements
+- Nothing exceeds 300ms
+- Toast: slides from corner, stacks, auto-dismisses with progress bar countdown
+
+DONE WHEN: App looks polished enough for App Store screenshots · No visual inconsistencies · Empty states all designed · Dark mode complete · Motion system consistent
+
+UPDATE /AUDIT.md: Append a "## P4 — Visual Fixes" section. Mark each item from Section 5 as ✓ resolved or ⚠ partial. Document the final design decisions made (colors, spacing, radius). Append only.`
+      },
+      {
+        id:'p5', step:'Prompt 5 of 6', title:'Fix — Accessibility, Performance & Export',
+        isConvert: false,
+        hint:'Read AUDIT.md first. Final quality pass before handoff — a11y, perf, export, and code clean-up.',
+        text:`You are a senior engineer doing the final quality pass on ${a.name} in Lovable before Claude Code handoff.
+
+FIRST: Read /AUDIT.md — especially Sections 6 (Code Quality Flags) and 8 (Priority Order), plus all P2/P3/P4 append sections to see what has and hasn't been resolved yet. This pass closes everything still open.
+
+Three focus areas: accessibility, performance, and the export/backup feature.
+
+═══════════════════════════════════════
+ACCESSIBILITY
+═══════════════════════════════════════
+- Every interactive element: keyboard focusable, correct ARIA role
+- Every icon: aria-label or aria-hidden (if decorative and paired with text)
+- Every form input: associated <label> (not placeholder as substitute)
+- All modals: role="dialog", aria-modal="true", focus trapped, returns to trigger on close
+- Dynamic content (toasts, search results): aria-live regions
+- Focus rings: visible, consistent with brand color
+- All clickable areas: minimum 44×44px hit target
+
+═══════════════════════════════════════
+PERFORMANCE
+═══════════════════════════════════════
+- Audit for unnecessary re-renders: add React.memo on list items, useMemo for derived data, useCallback for handlers passed as props
+- Move expensive computations (sorting, filtering) out of render with useMemo
+- Virtualize any list that could exceed 50 items (@tanstack/react-virtual)
+- All images: lazy loaded with loading="lazy"
+- Remove all unused imports, dead code, console.logs, TODOs
+
+═══════════════════════════════════════
+EXPORT & BACKUP (V1 Essential — must be complete)
+═══════════════════════════════════════
+- Export as JSON: full fidelity, importable back in
+- Export as plain text (.txt): one entry per section, human readable
+- Export as Markdown (.md): dates as headers, formatted
+- Import: accept JSON file, validate structure, merge with existing (no duplicates by ID)
+- All export/import functions in /src/lib/export.ts
+- UI: settings screen with clearly labeled export buttons and import file picker
+
+═══════════════════════════════════════
+FINAL CODE CLEAN-UP
+═══════════════════════════════════════
+- Remove all: console.log, unused imports, dead code, TODO comments, FIXME
+- Verify every component is under 200 lines
+- Verify all hardcoded values are in constants/index.ts
+- Verify all localStorage calls go through storage.ts
+- Verify all types are in /src/types/index.ts
+
+DONE WHEN: Accessibility audit passing · Performance optimized · Export feature complete and tested · Code fully clean · Zero console errors
+
+UPDATE /AUDIT.md: Append a "## P5 — Final Quality Pass" section. Mark every remaining item from Sections 6 and 8 as ✓ resolved or ⚠ still pending (with reason). Note anything that will need attention during Claude Code migration. Append only.`
+      },
+      {
+        id:'p6', step:'Prompt 6 of 6', title:'Handoff — Final Review & Migration Doc',
+        isConvert: false,
+        hint:'Read AUDIT.md first. Product verdict + generates HANDOFF.md for Claude Code migration.',
+        text:`You are a senior product strategist doing the final review of ${a.name} in Lovable before React Native migration. Two jobs: product verdict and handoff documentation.
+
+FIRST: Read /AUDIT.md in full — including all the P2–P5 append sections. Your HANDOFF.md must reflect the current state of the app, not the original audit findings. Pull data models, component inventory, and design decisions from the append sections where they were documented.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Problem: ${a.v1}
+Differentiator vs ${comp}: ${a.differentiator}
+Target acquirer: ${a.acquirer}
+
+═══════════════════════════════════════
+PART 1 — FINAL PRODUCT REVIEW
+═══════════════════════════════════════
+
+PHASE 1 — CORE LOOP QUALITY
+State in your own words what this app does and who it's for. Evaluate the primary user action: is it fast, satisfying, and low-friction? If the core loop has any remaining friction, name it.
+
+PHASE 2 — V1 COMPLETENESS CHECK
+Go through each V1 feature one by one:
+${ess}
+For each: ✓ Complete / ⚠ Partial (describe gap) / ✗ Missing
+
+PHASE 3 — LAUNCH READINESS
+- Would a new user understand the app in 10 seconds?
+- Does it feel more intentional than ${comp}?
+- Is there anything that would cause a 1-star review on day one?
+- Any remaining edge cases that would embarrass the app in front of a real user?
+
+PHASE 4 — VERDICT
+Ready for Claude Code migration / Ready with caveats (list them) / Not ready (list blockers). Be specific and honest. End with one sentence.
+
+═══════════════════════════════════════
+PART 2 — HANDOFF.md (save as /HANDOFF.md in the project root)
+═══════════════════════════════════════
+Write a complete handoff document for Claude Code. It must contain:
+
+1. App overview: name, problem, differentiator, target acquirer (one sentence each)
+2. Current tech stack: React + Vite + TS + Tailwind + shadcn + Zustand + React Query + localStorage
+3. Full folder structure with one-line purpose per directory
+4. Every data model: paste TypeScript interfaces from /src/types/index.ts verbatim
+5. localStorage schema: every key name, its data shape, and purpose
+6. Every component: name, what it renders, props it accepts, any important state
+7. Every Zustand store: name, state shape, all actions
+8. Every custom hook: name, what it does, what it returns
+9. Every export function in /src/lib/export.ts: input, output, format
+10. Known limitations: what localStorage can't do that a real DB will fix (offline sync, multi-device, etc.)
+11. Migration notes: web-only patterns that need React Native equivalents, any libraries that need replacing
+12. Design decisions: hex color palette, typography scale (size + weight for each level), spacing system, border-radius value, shadow style
+13. Remaining gaps: anything that was NOT completed and will need to be built during migration
+
+DONE WHEN: Product review complete with clear verdict · HANDOFF.md written and complete · App is fully ready for Claude Code React Native migration
+
+Note: HANDOFF.md is the final authoritative document. It supersedes AUDIT.md and is what Claude Code will receive for the migration.`
+      },
+    ];
+  }
+
+  // ── CLAUDE CODE PROMPTS (Already Built — migrating from Lovable) ───────────
+  return [
+    {
+      id:'p1', step:'Prompt 1 of 6', title:'Migrate to Vickery Digital Stack',
+      isConvert: true,
+      hint:'Run before anything else. Migrates your Lovable app to the Claude Code stack — preserves all UI and logic.',
+      text:`You are a senior full-stack engineer working inside the Vickery Digital indie app studio. An app called "${a.name}" has already been built in Lovable (React + Vite + Tailwind). Your job is NOT to rebuild it. Migrate it into the Vickery Digital canonical stack, preserving all UI, logic, and design work exactly.
+
+Read HANDOFF.md first if it exists. If not, audit the codebase yourself and produce an inventory before touching anything.
+
+═══════════════════════════════════════
+APP
+═══════════════════════════════════════
+Name: ${a.name}
+Problem: ${a.v1}
+Differentiator vs ${comp}: ${a.differentiator}
+Target acquirer: ${a.acquirer}
+
+═══════════════════════════════════════
+WHAT ALREADY EXISTS — PRESERVE ALL OF THIS:
+═══════════════════════════════════════
+- All React UI components and screens → migrate to React Native equivalents
+- All business logic and state management → port as-is
+- All visual design (colors, spacing, typography) → migrate to NativeWind or StyleSheet
+- All data models and TypeScript types → map directly to Drizzle schema
+
+═══════════════════════════════════════
+${VD_STACK}
+
+═══════════════════════════════════════
+MIGRATION STEPS — IN EXACT ORDER:
+═══════════════════════════════════════
+STEP 1 — AUDIT (print this before writing any code)
+- Every screen/component → its React Native equivalent
+- Every data dependency being replaced (localStorage, Supabase, etc.)
+- Web-only APIs needing mobile equivalents (window, document, CSS hover, etc.)
+- Any Lovable-specific patterns to replace
+
+STEP 2 — SCAFFOLD
+- Expo SDK 54 + TypeScript strict + Expo Router
+- /api: Hono 4.7 for Vercel Edge with auth.ts (Clerk JWT), error.ts, rateLimit.ts, GET /health
+- /db/schema.ts: Drizzle schema matching existing data models exactly
+- First idempotent migration
+- constants/index.ts: extract all hardcoded values from Lovable app
+
+STEP 3 — MIGRATE UI
+- Port every screen and component to React Native
+- div → View · p/span → Text · img → Image · onClick → onPress
+- Tailwind classes → NativeWind (keep same class names where possible)
+- Preserve all state management logic
+
+STEP 4 — WIRE BACKEND
+- Build Hono API routes for all data operations
+- Validate every input with Zod
+- Connect Expo app to Hono API (replace all localStorage calls with API calls)
+
+STEP 5 — AUTH
+- Replace any existing auth with Clerk
+- Apple Sign-In + Google Sign-In (both required for App Store)
+- All protected routes use shared auth.ts JWT middleware
+
+STEP 6 — SERVICES
+- RevenueCat: dedicated project for ${a.name}, never shared — document in CLAUDE.md
+- Sentry: on both Expo app and Hono API
+- Expo EAS: eas.json with development, preview (TestFlight), production profiles
+- .env.example: every variable documented
+
+STEP 7 — CLAUDE.md
+${VD_CLAUDEMD}
+Include a Migration Notes section: what was replaced, what was preserved, and why.
+
+DONE WHEN: All screens on iOS Simulator — visual design preserved, zero regressions · vercel dev starts API · Drizzle migration runs · Clerk auth works · No console errors · CLAUDE.md complete · Print migration summary`
+    },
+    {
+      id:'p2', step:'Prompt 2 of 6', title:'Backend & Data Layer',
+      isConvert: true,
+      hint:'Migration must be clean before this. Builds the complete API and hardens the DB schema.',
+      text:`You are a senior backend engineer at Vickery Digital. Read CLAUDE.md in full before writing a single line — it is your source of truth for this session.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Problem: ${a.v1}
+Differentiator: ${a.differentiator}
+
+${VD_STACK}
+
+YOUR TASK:
+
+1. SCHEMA REVIEW & FINALIZE
+   Review the schema from Prompt 1. Harden it: missing indexes, foreign key relationships, all columns needed for V1. Run and verify Drizzle migration against Turso. Update CLAUDE.md if anything changed.
+
+2. HONO API — ALL ROUTES
+   Build complete working routes for every V1 feature:
+${ess}
+
+   Every route must have:
+   - Clerk JWT middleware via shared auth.ts
+   - Zod input validation — 400 + { error, code } on bad input
+   - Rate limiting on all mutations (POST/PUT/PATCH/DELETE)
+   - HTTP status codes: 200, 201, 400, 401, 403, 404, 409, 500
+   - Sentry error logging — never leak stack traces to client
+
+3. PUSH NOTIFICATION TRIGGERS
+   For any V1 feature requiring push:
+   - Query push tokens from Turso for relevant users
+   - Send via Expo Push Notification Service (not Web Push)
+   - Handle invalid tokens (remove from DB on receipt error)
+   - Document each trigger in CLAUDE.md: "event X → route Y → notifies user Z"
+
+4. REVENUECAT WEBHOOK
+   POST /webhooks/revenuecat — verified by shared secret, not Clerk JWT
+   Handle: INITIAL_PURCHASE, RENEWAL, CANCELLATION, EXPIRATION → update user entitlement in Turso
+
+5. INTEGRATION TESTS — every route: happy path + 2 error cases
+
+6. DEPLOY & VERIFY — deploy to Vercel Edge, verify all routes, confirm no cold starts
+
+7. UPDATE CLAUDE.md — every route: method, path, auth, Zod schema, response shape, rate limited
+
+DONE WHEN: All routes deployed and tested · No cold starts · CLAUDE.md route table complete`
+    },
+    {
+      id:'p3', step:'Prompt 3 of 6', title:'Core Features Build',
+      isConvert: true,
+      hint:'API must be deployed. Implements all V1 features fully in React Native.',
+      text:`You are a senior React Native engineer at Vickery Digital. Read CLAUDE.md before touching any code. Implement all V1 features completely — no stubs, no placeholders, no TODO comments.
+
+═══════════════════════════════════════
+APP CONTEXT
+═══════════════════════════════════════
+Core loop: ${a.v1}
+Must feel better than ${comp}: ${a.differentiator}
+
+IMPLEMENT FULLY:
+${ess}
+
+FOR EACH FEATURE:
+- Full UI connecting to the live Hono API
+- Optimistic UI: update immediately, save in background, revert only on failure
+- Skeleton screens (not spinners) shaped to match actual content
+- Empty states: icon + friendly headline + explanation + CTA
+- Error states: helpful, actionable — not just "Something went wrong"
+- Edge cases: 0 items, 1 item, 500+ items, very long text, short input
+
+CODE STANDARDS:
+- No component > 200 lines — split if larger
+- No prop drilling > 2 levels — use context or Zustand
+- All duplicate logic extracted to /hooks
+- All values in constants/index.ts
+- No TODOs, no console.logs, no dead code, no unused imports
+
+Self-review after implementing: read every component with fresh eyes and fix anything that would embarrass a professional team.
+
+DONE WHEN: All V1 features working end-to-end · Self-review clean · No regressions`
+    },
+    {
+      id:'p4', step:'Prompt 4 of 6', title:'UX & Interactions Polish',
+      isConvert: true,
+      hint:'Walk every flow as a first-time user. Kill friction before the visual pass.',
+      text:`You are a senior UX engineer at Vickery Digital. Read CLAUDE.md. Walk through every flow in ${a.name} as if you have never seen it. Fix every place with friction, confusion, or dead ends.
+
+Users are coming from: ${comp}
+What must feel dramatically better: ${a.differentiator}
+
+AUDIT AND FIX:
+- Reduce clicks wherever possible
+- Surface buried actions (anything daily should be ≤2 taps)
+- Confirmation dialogs before every destructive action
+- Every screen has a clear next step — nothing dead-ends
+
+INTERACTIONS TO IMPLEMENT:
+- Autosave to AsyncStorage: 400ms debounce, subtle "Saved ✓" indicator (fades 1.5s)
+- Undo: toast with "Undo" button for 5s after every destructive action · Cmd/Ctrl+Z on iPad
+- Soft-delete everywhere: recoverable, not permanent
+- Swipe-down dismisses bottom sheets · Escape dismisses modals
+- Push permission deferred until after first meaningful action — explain value before asking
+- Notification tap deep-links to relevant content, not home screen
+- Cmd+N for primary action · "?" for keyboard shortcut reference sheet (iPad)
+- Returning after 7+ days: subtle inline re-engagement message
+
+EDGE CASES:
+- Offline: full offline mode, queue writes, sync on reconnect, subtle indicator
+- Very long content: "Read more" expansion, not just ellipsis
+- Interrupted flows: background app mid-action, return — state preserved
+- New user (0 data) vs power user (500+ items) — both intentional
+
+DONE WHEN: Every flow clean · Autosave + undo working · Offline mode · Push deferred · No dead ends`
+    },
+    {
+      id:'p5', step:'Prompt 5 of 6', title:'Visual Design, A11y & Performance',
+      isConvert: true,
+      hint:'Make it feel crafted. Visual polish, dark mode, accessibility, and all device sizes.',
+      text:`You are a senior product designer and accessibility engineer at Vickery Digital. Read CLAUDE.md. Complete pre-launch polish on ${a.name} — App Store quality.
+
+The single feeling it must communicate: ${a.differentiator}
+
+VISUAL DESIGN:
+Spacing: 8px base rhythm everywhere. Nothing accidentally placed. Generous whitespace — calm, focused app.
+Typography: max 3 sizes. Heading / body / metadata. Never #000 for text. Weight creates hierarchy.
+Color: every color earns its place. One interactive color. Status colors (success/error/warning/info) intuitive and consistent. Page → card → surface layers feel distinct.
+Shape: one border-radius, applied everywhere. Soft shadows. Clickable ≠ static (visually).
+Icons: lucide-react-native only. Consistent sizing. Text labels on ambiguous actions.
+
+MOTION:
+- List items: fade + translate-y in 150ms
+- Modals: scale + fade 200ms · Nothing > 350ms
+- Toast: slides from corner, stacks, success/error/warning/info variants, countdown progress bar, pauses on hover
+
+DARK MODE: Purpose-built — not inverted. Deep backgrounds, clear surface layers. Light/dark/system toggle. Smooth animated transition.
+
+ACCESSIBILITY:
+- Every interactive: keyboard focusable, correct accessibilityRole
+- Every icon: accessibilityLabel or accessibilityHidden
+- Every input: associated label · Modals: focus trapped, returns focus to trigger
+- All tap targets ≥ 44×44pt
+
+PERFORMANCE:
+- React.memo on list items, useMemo for derived data
+- Expensive ops out of render
+- FlashList (not FlatList) for lists > 50 items
+- Confirm optimistic UI working from Prompt 3
+
+RESPONSIVE: Test iPhone SE (375), Pro (390), Pro Max (430), iPad (768). Fix all overflow. Full-screen modals on iPhone, sheets on iPad.
+
+DONE WHEN: App Store quality visuals · Dark mode working · A11y audit passing · All device sizes clean`
+    },
+    {
+      id:'p6', step:'Prompt 6 of 6', title:'Code Hardening, Launch Prep & Docs',
+      isConvert: true,
+      hint:'Final engineering pass + full documentation package. Leaves nothing embarrassing.',
+      text:`You are a senior engineer at Vickery Digital. Read CLAUDE.md. Final pre-launch pass on ${a.name} — code hardening and documentation.
+
+Target acquirer: ${a.acquirer}
+
+═══════════════════════════════════════
+PART 1 — CODE HARDENING
+═══════════════════════════════════════
+- Components > 200 lines: split · Duplicate logic: extract to /hooks or /lib
+- State prop-drilled > 2 levels: refactor · Derivable state stored: fix
+- Race conditions or stale closures: eliminate
+- Remaining hardcoded values: move to constants/index.ts
+- All AsyncStorage: try/catch, graceful fallbacks
+- Remove all: console.log, unused imports, dead code, TODO, FIXME
+
+SECURITY: No secrets in client code · All API responses validated · User input sanitized
+
+APP STORE PREP:
+- app.json: bundle ID com.vickereydigital.${slug}, version 1.0.0, build 1
+- All Info.plist privacy strings present (camera, photo library, notifications, etc.)
+- eas build --platform ios --profile preview: runs clean
+- TestFlight build installs and runs on real device
+- App icon 1024×1024 in /assets · Splash screen configured
+
+═══════════════════════════════════════
+PART 2 — DOCUMENTATION PACKAGE
+═══════════════════════════════════════
+Update CLAUDE.md to final state. Then generate /docs/ with:
+
+APP STORE LISTING (~500 words): problem solved, top 5 features as benefit-led bullets, who it's for, strong CTA. Keywords: ${a.competitors.slice(0,2).join(', ')} alternatives, daily journal app, one line journal, minimal journal.
+
+PRODUCT HUNT POST (250 words): first-person, genuine, not salesy. What it does, why you built it, what makes it different.
+
+LANDING PAGE COPY: hero headline + subheadline · 3 feature sections · social proof placeholder · footer tagline
+
+README.md: what the app is · key features · tech stack · how to run locally · license
+
+DONE WHEN: Zero console errors · Code hardened · EAS build passing · TestFlight verified · CLAUDE.md final · All docs written · List every change made`
+    },
+  ];
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  allPrompts = buildPrompts(APP, mode);
+  renderProgressSteps();
+  renderCards();
+}
+
+function renderProgressSteps() {
+  const el = document.getElementById('progressSteps');
+  el.innerHTML = allPrompts.map(p => {
+    const isDone = doneState[p.id];
+    const isNext = !isDone && allPrompts.findIndex(x => !doneState[x.id]) === allPrompts.indexOf(p);
+    return `<span class="ps${isDone?' done':isNext?' active':''}" id="pstep-${p.id}">P${p.id.replace('p','')}</span>`;
+  }).join('');
+  updateProgressBar();
+}
+
+function updateProgressBar() {
+  const done = Object.values(doneState).filter(Boolean).length;
+  document.getElementById('progressFill').style.width = `${(done / allPrompts.length) * 100}%`;
+}
+
+function renderCards() {
+  const container = document.getElementById('promptCards');
+  container.innerHTML = '';
+  allPrompts.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'prompt-card';
+    card.id = 'card-' + p.id;
+    const isDone = doneState[p.id];
+    if (isDone) card.style.opacity = '0.6';
+    const badgeClass = p.isConvert ? 'step-badge convert-badge' : 'step-badge';
+    const modeTag = p.isConvert
+      ? '<span style="font-size:10px;color:var(--blue);background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:4px;padding:1px 6px;font-family:var(--mono);letter-spacing:0.06em">CLAUDE CODE</span>'
+      : mode === 'improve'
+        ? '<span style="font-size:10px;color:var(--accent2);background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.2);border-radius:4px;padding:1px 6px;font-family:var(--mono);letter-spacing:0.06em">LOVABLE</span>'
+        : '<span style="font-size:10px;color:var(--purple);background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);border-radius:4px;padding:1px 6px;font-family:var(--mono);letter-spacing:0.06em">LOVABLE</span>';
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-title">
+          <span class="${badgeClass}">${p.step}</span>
+          ${escHtml(p.title)}
+          ${modeTag}
+        </div>
+        <div class="card-actions">
+          <button class="btn${isDone?' marked':''}" id="done-${p.id}" onclick="toggleDone('${p.id}')">
+            ${isDone ? '✓ Done' : 'Mark Done'}
+          </button>
+          <button class="btn" id="copy-${p.id}" onclick="copyCard('${p.id}')">⎘ Copy</button>
+        </div>
+      </div>
+      <div class="card-body" id="body-${p.id}">${escHtml(p.text)}</div>
+      <div class="card-hint">
+        <span>💡 ${escHtml(p.hint)}</span>
+        <button class="expand-btn" id="expand-${p.id}" onclick="toggleExpand('${p.id}')">Show more ↓</button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function toggleDone(id) {
+  doneState[id] = !doneState[id];
+  const card = document.getElementById('card-' + id);
+  const btn = document.getElementById('done-' + id);
+  const pstep = document.getElementById('pstep-' + id);
+  if (doneState[id]) {
+    card.style.opacity = '0.6';
+    btn.textContent = '✓ Done';
+    btn.classList.add('marked');
+    if (pstep) { pstep.classList.add('done'); pstep.classList.remove('active'); }
+  } else {
+    card.style.opacity = '1';
+    btn.textContent = 'Mark Done';
+    btn.classList.remove('marked');
+    if (pstep) pstep.classList.remove('done');
+  }
+  renderProgressSteps();
+}
+
+function toggleExpand(id) {
+  const body = document.getElementById('body-' + id);
+  const btn = document.getElementById('expand-' + id);
+  const expanded = body.classList.toggle('expanded');
+  btn.textContent = expanded ? 'Show less ↑' : 'Show more ↓';
+}
+
+// ── Copy individual ───────────────────────────────────────────────────────────
+function copyCard(id) {
+  const p = allPrompts.find(x => x.id === id);
+  if (!p) return;
+  const btn = document.getElementById('copy-' + id);
+  writeToClipboard(p.text, () => {
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⎘ Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── Copy all / export ─────────────────────────────────────────────────────────
+function getAllText() {
+  const divider = '\n\n' + '═'.repeat(60) + '\n\n';
+  return allPrompts.map(p =>
+    `=== ${p.step.toUpperCase()}: ${p.title.toUpperCase()} ===\n\n${p.text}`
+  ).join(divider);
+}
+
+function openExportModal() {
+  const ta = document.getElementById('exportTextarea');
+  ta.value = getAllText();
+  document.getElementById('exportModalTitle').textContent = `All 6 Prompts — ${APP.name}`;
+  document.getElementById('exportModal').classList.add('open');
+  setTimeout(() => { ta.focus(); ta.select(); }, 100);
+}
+
+function closeModal() { document.getElementById('exportModal').classList.remove('open'); }
+function closeModalIfBg(e) { if (e.target === document.getElementById('exportModal')) closeModal(); }
+
+function copyFromModal() {
+  const ta = document.getElementById('exportTextarea');
+  const btn = document.getElementById('modalCopyBtn');
+  ta.select();
+  writeToClipboard(ta.value, () => {
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⎘ Copy All to Clipboard'; btn.classList.remove('copied'); }, 2500);
+  });
+}
+
+function downloadAll() {
+  const text = getAllText();
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${APP.name.toLowerCase().replace(/\s+/g,'-')}-claude-code-prompts-${mode}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── Clipboard with fallback ───────────────────────────────────────────────────
+function writeToClipboard(text, onSuccess) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess));
+  } else {
+    fallbackCopy(text, onSuccess);
+  }
+}
+
+function fallbackCopy(text, onSuccess) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok && onSuccess) onSuccess();
+  } catch(e) { console.warn('Copy failed', e); }
+}
+
+// ── Escape HTML ───────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ── Refine tab ────────────────────────────────────────────────────────────────
+async function generateRefinePrompt() {
+  const appName = document.getElementById('refineAppName').value.trim();
+  const claudeMd = document.getElementById('refineClaude').value.trim();
+  const change = document.getElementById('refineChange').value.trim();
+  const errEl = document.getElementById('refineError');
+  const outEl = document.getElementById('refineOutput');
+  const btn = document.getElementById('refineGenerateBtn');
+
+  errEl.style.display = 'none';
+  if (!appName || !change) {
+    errEl.textContent = 'App Name and What to change are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+  outEl.style.display = 'none';
+
+  const systemPrompt = `You are a prompt engineer for Vickery Digital, an indie app studio. Your job is to produce a single, self-contained Claude Code improvement prompt.
+
+The Vickery Digital canonical stack:
+- Native frontend: Expo SDK 54 + Expo Router (file-based navigation)
+- API: Hono 4.7 on Vercel Edge
+- Database: Turso/libSQL with Drizzle ORM
+- Auth: Clerk (Apple Sign-In + Google Sign-In)
+- Subscriptions: RevenueCat (per-app project)
+- Push: Expo Push Notification Service
+- Monitoring: Sentry
+
+Rules for the prompt you generate:
+1. Open with exactly: "Read CLAUDE.md before making any changes."
+2. Name the app and clearly describe the requested change.
+3. Reference the canonical stack where relevant (do not list it all if not needed).
+4. End with a "DONE WHEN:" block containing 3-5 specific, testable acceptance criteria derived from the change description.
+5. The prompt must be completely self-contained — no references to prior conversations or external context.
+6. Output ONLY the prompt text. No preamble, no explanation, no markdown fences.`;
+
+  const userMessage = `App name: ${appName}
+
+${claudeMd ? `CLAUDE.md contents:\n${claudeMd}\n\n` : ''}Requested change:\n${change}`;
+
+  try {
+    const resp = await fetch('https://workspace-api.vercel.app/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `API returned ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || 'No response received.';
+
+    document.getElementById('refineOutputText').textContent = text;
+    outEl.style.display = 'block';
+  } catch (e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.textContent = 'Generate Improvement Prompt →';
+    btn.disabled = false;
+  }
+}
+
+function copyRefineOutput() {
+  const text = document.getElementById('refineOutputText').textContent;
+  const btn = document.getElementById('refineCopyBtn');
+  writeToClipboard(text, () => {
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⎘ Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+// Pre-fill manual fields with default app
+document.getElementById('manualName').value = APP.name;
+document.getElementById('manualDesc').value = APP.v1;
+renderAll();
+
+// Listen for pre-fill from parent workspace
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'vd:prefill') {
+    if (e.data.appName) {
+      document.getElementById('manualName').value = e.data.appName;
+    }
+    if (e.data.description) {
+      document.getElementById('manualDesc').value = e.data.description;
+    }
+    onManualInput();
+    renderAll();
+  }
+});
+</script>
+</body>
+</html>
