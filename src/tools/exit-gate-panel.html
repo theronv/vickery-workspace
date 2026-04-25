@@ -507,6 +507,20 @@
 
   <!-- ── STEP 1: Configure ─────────────────────────────── -->
   <div id="step1" class="step-panel">
+
+    <div class="eg-section">
+      <div class="eg-section-label">Pre-fill from file <span style="font-size:10px;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(optional — CLAUDE.md, AUDIT.md, HANDOFF.md)</span></div>
+      <div class="upload-zone" id="prefillZone" style="padding:14px 20px">
+        <input type="file" id="prefillFile" accept=".md,.txt" onchange="handlePrefillUpload(this)">
+        <div style="display:flex;align-items:center;gap:10px;justify-content:center">
+          <span style="font-size:18px">📋</span>
+          <div class="upload-label"><strong>Drop any .md file</strong> to auto-fill the fields below</div>
+        </div>
+        <div class="upload-filename" id="prefillFilename"></div>
+      </div>
+      <div id="prefillStatus" style="display:none;margin-top:8px;font-size:12px;color:var(--green);font-family:var(--font-mono)"></div>
+    </div>
+
     <div class="eg-section">
       <div class="eg-section-label">App context</div>
       <div class="input-row">
@@ -749,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Drag-over styles for upload zone
+  // Drag-over styles for audit upload zone (step 3)
   const zone = document.getElementById('uploadZone');
   zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
@@ -759,7 +773,161 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = e.dataTransfer.files[0];
     if (file) processFile(file);
   });
+
+  // Drag-over styles for prefill upload zone (step 1)
+  const prefillZone = document.getElementById('prefillZone');
+  prefillZone.addEventListener('dragover', e => { e.preventDefault(); prefillZone.classList.add('drag-over'); });
+  prefillZone.addEventListener('dragleave', () => prefillZone.classList.remove('drag-over'));
+  prefillZone.addEventListener('drop', e => {
+    e.preventDefault();
+    prefillZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) parsePrefillFile(file);
+  });
 });
+
+// ─── Pre-fill from MD file ────────────────────────────────────────────────────
+function handlePrefillUpload(input) {
+  if (input.files[0]) parsePrefillFile(input.files[0]);
+}
+
+function parsePrefillFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const content = e.target.result;
+    const filename = file.name;
+    const filled = extractFromMd(content, filename);
+
+    const nameEl = document.getElementById('prefillFilename');
+    nameEl.textContent = '✓ ' + filename;
+    nameEl.style.display = 'block';
+
+    const parts = [];
+    if (filled.name) {
+      document.getElementById('appName').value = filled.name;
+      parts.push('app name');
+    }
+    if (filled.phase) {
+      document.getElementById('appPhase').value = filled.phase;
+      parts.push('phase');
+    }
+    if (filled.features.length) {
+      const list = document.getElementById('featureList');
+      list.innerHTML = '';
+      filled.features.forEach(f => {
+        const row = document.createElement('div');
+        row.className = 'feature-row';
+        row.innerHTML = `<input type="text" value="${f.replace(/"/g, '&quot;')}" /><button class="btn-icon" onclick="removeFeature(this)" title="Remove">×</button>`;
+        list.appendChild(row);
+      });
+      parts.push(`${filled.features.length} features`);
+    }
+
+    const status = document.getElementById('prefillStatus');
+    if (parts.length) {
+      status.textContent = '✓ Filled: ' + parts.join(', ');
+      status.style.color = 'var(--green)';
+    } else {
+      status.textContent = '— No recognizable fields found. Fill in manually.';
+      status.style.color = 'var(--text-muted)';
+    }
+    status.style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+function extractFromMd(content, filename) {
+  const lines = content.split('\n');
+  let name = '', phase = '';
+  const features = [];
+
+  // ── App name ──────────────────────────────────────────────────────────────
+  // HANDOFF.md — AppName
+  const handoffMatch = content.match(/^#\s+HANDOFF\.md\s+[—–-]+\s+(.+)/im);
+  if (handoffMatch) name = handoffMatch[1].trim();
+
+  // # AUDIT — AppName  or  # AUDIT.md — AppName
+  if (!name) {
+    const auditMatch = content.match(/^#\s+AUDIT(?:\.md)?\s+[—–-]+\s+(.+)/im);
+    if (auditMatch) name = auditMatch[1].trim();
+  }
+
+  // **Name:** AppName  or  - **Name:** AppName
+  if (!name) {
+    const nameMatch = content.match(/\*\*Name:\*\*\s*(.+)/i);
+    if (nameMatch) name = nameMatch[1].replace(/\*+/g, '').trim();
+  }
+
+  // App: AppName  (AUDIT.md format)
+  if (!name) {
+    const appMatch = content.match(/^App:\s*(.+)/im);
+    if (appMatch) name = appMatch[1].trim();
+  }
+
+  // First H1 that isn't a known meta-heading
+  if (!name) {
+    const h1 = content.match(/^#\s+(?!AUDIT|HANDOFF|CLAUDE|Exit Gate)(.+)/im);
+    if (h1) name = h1[1].trim();
+  }
+
+  // Fall back to filename without extension
+  if (!name && filename) {
+    name = filename.replace(/\.(md|txt)$/i, '').replace(/[-_]/g, ' ');
+    const metaNames = ['claude', 'audit', 'handoff', 'readme'];
+    if (metaNames.some(m => name.toLowerCase() === m)) name = '';
+  }
+
+  // ── Phase ─────────────────────────────────────────────────────────────────
+  // **Phase at export:** ...  or  Phase: ...
+  const phaseMatch = content.match(/(?:\*\*Phase(?:\s+at\s+export)?:\*\*|Phase:)\s*(.+)/i);
+  if (phaseMatch) phase = phaseMatch[1].replace(/\*+/g, '').trim();
+
+  // Current phase in CLAUDE.md style
+  if (!phase) {
+    const phaseAlt = content.match(/current\s+phase[:\s]+(.+)/i);
+    if (phaseAlt) phase = phaseAlt[1].trim();
+  }
+
+  // ── Features ──────────────────────────────────────────────────────────────
+  // Look for a section whose heading contains "feature" or "v1"
+  const featureSectionRe = /^#{1,3}\s+.*(?:feature|v1|scope|mvp).*/im;
+  const featureSectionMatch = featureSectionRe.exec(content);
+
+  if (featureSectionMatch) {
+    const afterSection = content.slice(featureSectionMatch.index + featureSectionMatch[0].length);
+    const nextSection = afterSection.search(/^#{1,3}\s+/m);
+    const block = nextSection === -1 ? afterSection : afterSection.slice(0, nextSection);
+
+    block.split('\n').forEach(line => {
+      // Match bullet lines: - item, * item, 1. item, - [x] item
+      const m = line.match(/^[\s\-\*\d]+(?:\[[ x]\])?\s+(.{4,})/);
+      if (m) {
+        const text = m[1].replace(/\*+/g, '').trim();
+        if (text && features.length < 12) features.push(text);
+      }
+    });
+  }
+
+  // Fallback: scan for a numbered or bulleted list anywhere if no section found
+  if (!features.length) {
+    let inList = false;
+    for (const line of lines) {
+      const isBullet = /^[\s]*[-\*]\s+.{4,}/.test(line);
+      const isNum = /^[\s]*\d+\.\s+.{4,}/.test(line);
+      if (isBullet || isNum) {
+        inList = true;
+        const text = line.replace(/^[\s\-\*\d\.]+(?:\[[ x]\])?\s+/, '').replace(/\*+/g, '').trim();
+        if (text && features.length < 12) features.push(text);
+      } else if (inList && line.trim() === '') {
+        // allow one blank line in a list
+      } else if (inList && /^#/.test(line)) {
+        break;
+      }
+    }
+  }
+
+  return { name, phase, features };
+}
 
 // ─── Step navigation ─────────────────────────────────────────────────────────
 function goToStep(n) {
