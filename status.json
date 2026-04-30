@@ -1,11 +1,11 @@
 {
   "active_app": "monoline",
-  "updated": "2026-04-24",
+  "updated": "2026-04-30",
   "apps": {
     "monoline": {
       "name": "MonoLine",
       "stage": "alpha",
-      "next": "Complete TestFlight review cycle — resolve final crash reports before App Store submission",
+      "next": "Pre-Launch Testing - NO NEW FEATURES",
       "repo": "https://github.com/theronv/monoline",
       "links": {
         "vercel": "https://vercel.com/theronv/monoline-api",
@@ -20,7 +20,7 @@
     "chorify": {
       "name": "Chorify",
       "stage": "alpha",
-      "next": "vd check",
+      "next": "Review Task Packs",
       "repo": "https://github.com/theronv/new-chorify",
       "links": {
         "vercel": "https://vercel.com/theronv/chorify-api",
