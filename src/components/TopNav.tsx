@@ -7,6 +7,7 @@ const tabs: { id: PanelId; label: string }[] = [
   { id: 'execute', label: '3. EXECUTE' },
   { id: 'cli', label: 'vd-cli' },
   { id: 'angel', label: 'Angel Team' },
+  { id: 'angel-web', label: 'Angel Web' },
 ]
 
 interface TopNavProps {

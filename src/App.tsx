@@ -11,6 +11,7 @@ import BuildPanel from './panels/BuildPanel'
 import ExecutePanel from './panels/ExecutePanel'
 import CliPanel from './panels/CliPanel'
 import AngelTeamPanel from './panels/AngelTeamPanel'
+import AngelTeamWebPanel from './panels/AngelTeamWebPanel'
 
 function Dashboard() {
   const { activePanel } = usePipeline()
@@ -28,6 +29,7 @@ function Dashboard() {
           {activePanel === 'execute' && <ExecutePanel />}
           {activePanel === 'cli' && <CliPanel />}
           {activePanel === 'angel' && <AngelTeamPanel />}
+          {activePanel === 'angel-web' && <AngelTeamWebPanel />}
         </main>
       </div>
 

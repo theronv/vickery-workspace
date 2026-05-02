@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react'
 
-export type PanelId = 'vet' | 'build' | 'execute' | 'cli' | 'angel'
+export type PanelId = 'vet' | 'build' | 'execute' | 'cli' | 'angel' | 'angel-web'
 
 export interface ActiveProject {
   id?: string
