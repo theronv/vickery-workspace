@@ -665,6 +665,204 @@
       max-height: 180px;
       overflow-y: auto;
     }
+
+    /* ─── TOOLS MANAGER ─────────────────────────────────────── */
+    .tools-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2px 2px;
+      flex-shrink: 0;
+    }
+    .tools-hdr-label {
+      font-family: var(--ff-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .10em;
+      color: var(--muted);
+    }
+    .tools-cog-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1;
+      padding: 3px 5px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: color .12s, background .12s;
+    }
+    .tools-cog-btn:hover { color: var(--text); background: var(--surface-2); }
+
+    /* ─── OVERLAY ────────────────────────────────────────────── */
+    #tools-overlay {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .tov-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tov-title {
+      font-family: var(--ff-display);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+    .tov-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 5px;
+      border-radius: 3px;
+      line-height: 1;
+      transition: color .12s;
+    }
+    .tov-close:hover { color: var(--text); }
+    .tov-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+    .tov-section-lbl {
+      font-family: var(--ff-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .10em;
+      color: var(--muted);
+      padding-bottom: 4px;
+    }
+
+    /* ─── TOOL ROWS ──────────────────────────────────────────── */
+    .tov-list { display: flex; flex-direction: column; gap: 4px; }
+    .trow {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 9px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      user-select: none;
+      transition: border-color .12s, opacity .12s;
+    }
+    .trow.drag-over  { border-color: var(--orange); }
+    .trow.drag-ghost { opacity: .3; }
+    .trow-handle {
+      color: var(--muted);
+      font-size: 13px;
+      cursor: grab;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .trow-handle:active { cursor: grabbing; }
+    .trow-lock  { font-size: 10px; flex-shrink: 0; opacity: .5; }
+    .trow-label {
+      flex: 1;
+      font-size: 11px;
+      font-family: var(--ff-display);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .trow-label-input {
+      flex: 1;
+      background: var(--surface-3);
+      border: 1px solid var(--border-2);
+      border-radius: 3px;
+      color: var(--text);
+      font-size: 10px;
+      font-family: var(--ff-display);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 3px 6px;
+    }
+    .trow-label-input:focus { outline: none; border-color: var(--orange); }
+    .trow-actions { display: flex; gap: 3px; flex-shrink: 0; }
+    .trow-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--muted);
+      font-size: 12px;
+      width: 22px; height: 22px;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .12s;
+      padding: 0;
+    }
+    .trow-btn:hover        { color: var(--text); border-color: var(--border-2); }
+    .trow-btn.danger:hover { color: #ef4444; border-color: rgba(239,68,68,.4); }
+    .trow-btn.vis-off      { opacity: .35; }
+
+    /* ─── ADD TOOL SECTION ───────────────────────────────────── */
+    .dz {
+      border: 1px dashed var(--border-2);
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.7;
+      cursor: pointer;
+      transition: border-color .12s, color .12s;
+    }
+    .dz:hover, .dz.dz-active { border-color: var(--orange); color: var(--text); }
+    .dz-lbl { display: block; font-weight: 600; }
+    .paste-tog {
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      text-align: center;
+      padding: 5px;
+      border-radius: var(--radius-sm);
+      transition: color .12s;
+    }
+    .paste-tog:hover { color: var(--text); }
+    .paste-area {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .paste-area input, .paste-area textarea {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 12px;
+      padding: 7px 9px;
+      font-family: var(--ff-body);
+      width: 100%;
+    }
+    .paste-area input:focus, .paste-area textarea:focus {
+      outline: none; border-color: var(--orange);
+    }
+    .paste-area textarea {
+      height: 90px; resize: none;
+      font-family: var(--ff-mono); font-size: 10px; line-height: 1.5;
+    }
+
   </style>
 </head>
 
@@ -764,11 +962,49 @@
       <!-- Tool Launcher -->
       <div id="launcher"><!-- populated by JS --></div>
 
+      <!-- Tools section header -->
+      <div class="tools-hdr">
+        <span class="tools-hdr-label">Tools</span>
+        <button class="tools-cog-btn" onclick="tcOpenSettings()" title="Customize tools">⚙</button>
+      </div>
+
+      <!-- Settings overlay (shown instead of launcher+tools) -->
+      <div id="tools-overlay">
+        <div class="tov-hdr">
+          <span class="tov-title">Customize Tools</span>
+          <button class="tov-close" onclick="tcCloseSettings()">✕</button>
+        </div>
+        <div class="tov-body">
+          <div>
+            <div class="tov-section-lbl">Order &amp; Visibility</div>
+            <div id="tov-list" class="tov-list"></div>
+          </div>
+          <div>
+            <div class="tov-section-lbl">Add Tool</div>
+            <div class="dz" id="html-dz"
+                 onclick="document.getElementById('html-file-input').click()"
+                 ondragover="tcDzOver(event)"
+                 ondragleave="tcDzLeave(event)"
+                 ondrop="tcDzDrop(event)">
+              <input type="file" id="html-file-input" accept=".html,.htm" onchange="tcDzSelect(event)">
+              <span class="dz-lbl">Drop an HTML file here</span>
+              <span>or click to browse</span>
+            </div>
+            <div class="paste-tog" id="paste-tog" onclick="tcTogglePaste()">＋ Paste HTML instead</div>
+            <div class="paste-area" id="paste-area">
+              <input type="text" id="paste-name" placeholder="Tool name">
+              <textarea id="paste-html" placeholder="Paste full HTML here..."></textarea>
+              <button class="btn-action" onclick="tcAddFromPaste()">Add Tool</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Accordion Tools -->
       <div id="tools">
 
         <!-- 1. Prompt Generator -->
-        <div class="acc-item" id="acc-prompt">
+        <div class="acc-item" id="acc-prompt" data-tool-id="prompt">
           <div class="acc-header" onclick="toggleAcc('acc-prompt')">
             <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             <span class="acc-title">Prompt Generator</span>
@@ -797,7 +1033,7 @@
         </div>
 
         <!-- 2. Story Generator (panel launcher) -->
-        <div class="acc-item" id="acc-story">
+        <div class="acc-item" id="acc-story" data-tool-id="story">
           <div class="acc-header" onclick="switchPanel('stories');toggleAcc('acc-story')">
             <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             <span class="acc-title">Story Generator</span>
@@ -812,7 +1048,7 @@
         </div>
 
         <!-- 3. Pipeline Status -->
-        <div class="acc-item" id="acc-pipeline">
+        <div class="acc-item" id="acc-pipeline" data-tool-id="pipeline">
           <div class="acc-header" onclick="toggleAcc('acc-pipeline')">
             <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             <span class="acc-title">Pipeline Status</span>
@@ -823,7 +1059,7 @@
         </div>
 
         <!-- 4. Exit Gate -->
-        <div class="acc-item" id="acc-exit">
+        <div class="acc-item" id="acc-exit" data-tool-id="exit">
           <div class="acc-header" onclick="toggleAcc('acc-exit')">
             <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             <span class="acc-title">Exit Gate</span>
@@ -831,6 +1067,21 @@
           <div class="acc-body">
             <p style="font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:10px;">Score your Lovable build against the exit criteria before handing off to Claude Code.</p>
             <button class="btn-action" style="margin-top:10px" onclick="switchPanel('exit')">Open Exit Gate →</button>
+          </div>
+        </div>
+
+        <!-- 5. ⚡ Prompt Generator (Bug Fix) -->
+        <div class="acc-item" id="acc-bugfix" data-tool-id="bugfix">
+          <div class="acc-header" onclick="toggleAcc('acc-bugfix')">
+            <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            <span class="acc-title">⚡ Prompt Generator</span>
+          </div>
+          <div class="acc-body" style="padding:0;border-top:1px solid var(--border);">
+            <iframe
+              src="vd-bugfix.html"
+              style="width:100%;height:680px;border:none;display:block;"
+              title="Bug Fix Prompt Generator"
+            ></iframe>
           </div>
         </div>
 
@@ -890,6 +1141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const localKey = localStorage.getItem('vd-active-app');
     ACTIVE_KEY = (localKey && S.apps?.[localKey]) ? localKey : (S.active_app ?? null);
     APP = S.apps?.[ACTIVE_KEY] ?? null;
+    tcApply();
     renderFocusStrip();
     renderKanban();
     renderLauncher();
@@ -1341,6 +1593,266 @@ function fmtDate(s) {
 function daysSince(s) {
   try { return Math.floor((Date.now() - new Date(s+'T00:00:00').getTime()) / 86400000); }
   catch { return '?'; }
+}
+
+/* ================================================================
+   TOOLS MANAGER
+   ================================================================ */
+const TC_KEY     = 'vd-tools-config';
+const TC_BUILTIN = ['prompt', 'story', 'pipeline', 'exit', 'bugfix'];
+const TC_LABELS  = {
+  prompt:   'Prompt Generator',
+  story:    'Story Generator',
+  pipeline: 'Pipeline Status',
+  exit:     'Exit Gate',
+  bugfix:   '⚡ Prompt Generator',
+};
+
+function tcLoad() {
+  try {
+    const s = localStorage.getItem(TC_KEY);
+    if (s) {
+      const c = JSON.parse(s);
+      // ensure any newly-added builtins appear at the end
+      TC_BUILTIN.forEach(id => { if (!c.order.includes(id)) c.order.push(id); });
+      c.hidden = c.hidden ?? [];
+      c.custom = c.custom ?? [];
+      return c;
+    }
+  } catch {}
+  return { order: [...TC_BUILTIN], hidden: [], custom: [] };
+}
+
+function tcSave(c) {
+  try { localStorage.setItem(TC_KEY, JSON.stringify(c)); } catch {}
+}
+
+function tcApply() {
+  const c = tcLoad();
+
+  // Apply CSS `order` + visibility to built-in accordion items
+  c.order.forEach((id, idx) => {
+    const el = qs('#acc-' + id);
+    if (!el) return;
+    el.style.order   = idx;
+    el.style.display = c.hidden.includes(id) ? 'none' : '';
+  });
+
+  // Remove any previously rendered custom items
+  document.querySelectorAll('.acc-custom').forEach(el => el.remove());
+
+  // Render custom tools into #tools
+  const tools = qs('#tools');
+  c.custom.forEach(ct => {
+    const orderIdx = c.order.indexOf(ct.id);
+    const hidden   = c.hidden.includes(ct.id);
+    tools.appendChild(tcMakeItem(ct, orderIdx, hidden));
+  });
+}
+
+function tcMakeItem(ct, orderIdx, hidden) {
+  const el  = document.createElement('div');
+  el.className      = 'acc-item acc-custom';
+  el.id             = 'acc-' + ct.id;
+  el.dataset.toolId = ct.id;
+  el.style.order    = orderIdx;
+  el.style.display  = hidden ? 'none' : '';
+
+  const url = URL.createObjectURL(new Blob([ct.html], { type: 'text/html' }));
+
+  el.innerHTML = `
+    <div class="acc-header" onclick="toggleAcc('acc-${h(ct.id)}')">
+      <svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+      <span class="acc-title">${h(ct.label)}</span>
+    </div>
+    <div class="acc-body" style="padding:0;border-top:1px solid var(--border)">
+      <iframe src="${url}" style="width:100%;height:640px;border:none;display:block"
+              title="${h(ct.label)}"></iframe>
+    </div>`;
+
+  return el;
+}
+
+/* ── Overlay open / close ──────────────────────────────────────── */
+function tcOpenSettings() {
+  qs('#launcher').style.display      = 'none';
+  qs('#tools').style.display         = 'none';
+  qs('#tools-overlay').style.display = 'flex';
+  tcRenderList();
+}
+
+function tcCloseSettings() {
+  qs('#tools-overlay').style.display = 'none';
+  qs('#launcher').style.display      = '';
+  qs('#tools').style.display         = 'flex';
+}
+
+/* ── Render the draggable list ─────────────────────────────────── */
+function tcRenderList() {
+  const c = tcLoad();
+  qs('#tov-list').innerHTML = c.order.map(id => {
+    const isBI  = TC_BUILTIN.includes(id);
+    const ct    = c.custom.find(x => x.id === id);
+    const label = isBI ? (TC_LABELS[id] ?? id) : (ct?.label ?? id);
+    const isHid = c.hidden.includes(id);
+
+    return `
+      <div class="trow" data-id="${h(id)}" draggable="true"
+           ondragstart="tcDragStart(event,'${h(id)}')"
+           ondragover="tcDragOver(event)"
+           ondragleave="tcDragLeave(event)"
+           ondrop="tcDragDrop(event,'${h(id)}')">
+        <span class="trow-handle">⠿</span>
+        ${isBI ? '<span class="trow-lock" title="Built-in">🔒</span>' : ''}
+        ${isBI
+          ? `<span class="trow-label">${h(label)}</span>`
+          : `<input class="trow-label-input" value="${h(label)}"
+               onchange="tcRename('${h(id)}',this.value)"
+               onclick="event.stopPropagation()">`}
+        <div class="trow-actions">
+          <button class="trow-btn${isHid ? ' vis-off' : ''}"
+                  title="${isHid ? 'Show' : 'Hide'}"
+                  onclick="tcToggleVis('${h(id)}')">
+            ${isHid ? '○' : '●'}
+          </button>
+          ${!isBI
+            ? `<button class="trow-btn danger" title="Remove"
+                 onclick="tcRemove('${h(id)}')">🗑</button>`
+            : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ── Drag-to-reorder ───────────────────────────────────────────── */
+let _tcDragId = null;
+
+function tcDragStart(e, id) {
+  _tcDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const row = document.querySelector(`.trow[data-id="${id}"]`);
+    if (row) row.classList.add('drag-ghost');
+  }, 0);
+}
+
+function tcDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function tcDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function tcDragDrop(e, toId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!_tcDragId || _tcDragId === toId) { _tcDragId = null; return; }
+
+  const c  = tcLoad();
+  const fi = c.order.indexOf(_tcDragId);
+  const ti = c.order.indexOf(toId);
+  if (fi < 0 || ti < 0) { _tcDragId = null; return; }
+
+  c.order.splice(fi, 1);
+  c.order.splice(ti, 0, _tcDragId);
+  _tcDragId = null;
+
+  tcSave(c);
+  tcApply();
+  tcRenderList();
+}
+
+/* ── Row actions ───────────────────────────────────────────────── */
+function tcToggleVis(id) {
+  const c = tcLoad();
+  const i = c.hidden.indexOf(id);
+  if (i >= 0) c.hidden.splice(i, 1); else c.hidden.push(id);
+  tcSave(c); tcApply(); tcRenderList();
+}
+
+function tcRename(id, val) {
+  const v = val.trim();
+  if (!v) return;
+  const c  = tcLoad();
+  const ct = c.custom.find(x => x.id === id);
+  if (ct) ct.label = v;
+  tcSave(c);
+  // Update the live accordion header without re-mounting the iframe
+  const titleEl = qs(`#acc-${id} .acc-title`);
+  if (titleEl) titleEl.textContent = v;
+}
+
+function tcRemove(id) {
+  if (!confirm('Remove this tool?')) return;
+  const c   = tcLoad();
+  c.order   = c.order.filter(x => x !== id);
+  c.hidden  = c.hidden.filter(x => x !== id);
+  c.custom  = c.custom.filter(x => x.id !== id);
+  tcSave(c); tcApply(); tcRenderList();
+}
+
+/* ── Add a tool ────────────────────────────────────────────────── */
+function tcAdd(label, html) {
+  const c  = tcLoad();
+  const id = 'custom-' + Date.now();
+  c.custom.push({ id, label, html });
+  c.order.push(id);
+  tcSave(c); tcApply(); tcRenderList();
+  showToast('"' + label + '" added to Tools');
+}
+
+/* ── File drop zone ────────────────────────────────────────────── */
+function tcDzOver(e)  { e.preventDefault(); qs('#html-dz').classList.add('dz-active'); }
+function tcDzLeave(e) { qs('#html-dz').classList.remove('dz-active'); }
+
+function tcDzDrop(e) {
+  e.preventDefault();
+  qs('#html-dz').classList.remove('dz-active');
+  const f = e.dataTransfer.files[0];
+  if (f) tcReadFile(f);
+}
+
+function tcDzSelect(e) {
+  const f = e.target.files[0];
+  if (f) tcReadFile(f);
+  e.target.value = '';
+}
+
+function tcReadFile(f) {
+  if (f.size > 3 * 1024 * 1024) { showToast('File too large (max 3 MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const html = ev.target.result;
+    const m    = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const raw  = m ? m[1].trim() : f.name.replace(/\.html?$/i, '');
+    const label = raw.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    tcAdd(label, html);
+  };
+  reader.readAsText(f);
+}
+
+/* ── Paste HTML ────────────────────────────────────────────────── */
+function tcTogglePaste() {
+  const area   = qs('#paste-area');
+  const tog    = qs('#paste-tog');
+  const show   = area.style.display === 'none' || area.style.display === '';
+  area.style.display = show ? 'flex' : 'none';
+  tog.textContent    = show ? '− Hide paste area' : '＋ Paste HTML instead';
+}
+
+function tcAddFromPaste() {
+  const name = qs('#paste-name').value.trim();
+  const html = qs('#paste-html').value.trim();
+  if (!html) { showToast('Paste some HTML first'); return; }
+  tcAdd(name || 'Untitled Tool', html);
+  qs('#paste-name').value = '';
+  qs('#paste-html').value = '';
+  tcTogglePaste();
 }
 </script>
 </body>

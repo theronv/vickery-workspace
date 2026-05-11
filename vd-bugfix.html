@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Generator — Vickery Digital</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e28;
+    --border: #252a38;
+    --accent: #f97316;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 80px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .header { text-align: center; margin-bottom: 4px; }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── MODE TOGGLE ── */
+  .mode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .mode-btn {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 13px 16px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .mode-label {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: -0.01em;
+    transition: color 0.15s;
+  }
+
+  .mode-sub {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-top: 3px;
+    opacity: 0.6;
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active { background: var(--bg3); border-color: var(--border); }
+  .mode-btn.active.fix    .mode-label { color: #f87171; }
+  .mode-btn.active.fix    .mode-sub   { color: #f87171; opacity: 0.65; }
+  .mode-btn.active.change .mode-label { color: #60a5fa; }
+  .mode-btn.active.change .mode-sub   { color: #60a5fa; opacity: 0.65; }
+
+  /* ── INPUT ── */
+  .input-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    transition: color 0.2s;
+    color: var(--muted);
+  }
+  .input-label.fix    { color: #f87171; }
+  .input-label.change { color: #60a5fa; }
+
+  textarea {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    padding: 16px 18px;
+    resize: none;
+    height: 100px;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus { outline: none; border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); font-size: 15px; }
+
+  /* ── STACK TOGGLE ── */
+  .stack-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stack-btn {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .s-name { display: block; font-size: 12px; font-weight: 500; color: var(--text); }
+  .s-sub  { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .stack-btn:hover    { border-color: rgba(249,115,22,0.4); }
+  .stack-btn.active   { border-color: var(--accent); background: rgba(249,115,22,0.07); }
+
+  /* ── GENERATE ── */
+  .gen-btn {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: #0d0f14;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 15px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    letter-spacing: -0.01em;
+  }
+
+  .gen-btn:hover    { opacity: 0.88; }
+  .gen-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── LOADING ── */
+  .loading {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .loading.visible { display: flex; }
+
+  .spinner {
+    width: 15px; height: 15px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.65s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── OUTPUT ── */
+  .output-wrap {
+    display: none;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .output-wrap.visible { display: flex; }
+
+  .output-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .output-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .copy-btn.ok    { color: #22c55e; border-color: #22c55e; }
+
+  .output-body {
+    padding: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    color: #c9d1e0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .output-body::-webkit-scrollbar { width: 4px; }
+  .output-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .hint {
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    opacity: 0.5;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="eyebrow">Vickery Digital · Angel Team</div>
+    <h1>Prompt Generator</h1>
+  </div>
+
+  <!-- Mode -->
+  <div class="mode-toggle">
+    <button class="mode-btn fix active" data-mode="fix" onclick="selectMode(this)">
+      <span class="mode-label">🔴 Bug Fix</span>
+      <span class="mode-sub">Surgical · minimum change</span>
+    </button>
+    <button class="mode-btn change" data-mode="change" onclick="selectMode(this)">
+      <span class="mode-label">🔵 Change</span>
+      <span class="mode-sub">Feature · modification</span>
+    </button>
+  </div>
+
+  <!-- Input -->
+  <div>
+    <div class="input-label fix" id="input-label">What's broken?</div>
+    <textarea id="main-input"
+      placeholder="The invite friends button doesn't work"
+      autocomplete="off"
+      spellcheck="true"></textarea>
+  </div>
+
+  <!-- Stack -->
+  <div class="stack-toggle">
+    <button class="stack-btn active" data-stack="native" onclick="selectStack(this)">
+      <span class="s-name">Native (CC)</span>
+      <span class="s-sub">Expo · Hono · Turso · Clerk</span>
+    </button>
+    <button class="stack-btn" data-stack="web" onclick="selectStack(this)">
+      <span class="s-name">Web (Lovable)</span>
+      <span class="s-sub">React · Vite · Tailwind</span>
+    </button>
+  </div>
+
+  <!-- Generate -->
+  <button class="gen-btn" id="gen-btn" onclick="generate()">Generate Prompt</button>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">Writing prompt...</div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-wrap" id="output-wrap">
+    <div class="output-top">
+      <span class="output-tag" id="output-tag">Bug Fix · Native</span>
+      <button class="copy-btn" id="copy-btn" onclick="copyOutput()">Copy</button>
+    </div>
+    <div class="output-body" id="output-body"></div>
+  </div>
+
+  <div class="hint">⌘ + Enter to generate</div>
+
+</div>
+<script>
+  let mode  = 'fix';
+  let stack = 'native';
+
+  const placeholders = {
+    fix:    'The invite friends button doesn\'t work',
+    change: 'Add a character counter below the journal entry textarea'
+  };
+
+  const labels = {
+    fix:    'What\'s broken?',
+    change: 'What do you want?'
+  };
+
+  const loadingLines = {
+    fix:    ['Reading the codebase...', 'Scoping the fix...', 'Writing the prompt...'],
+    change: ['Scoping the change...', 'Checking dependencies...', 'Writing the prompt...']
+  };
+
+  const stackDesc = {
+    native: 'Expo SDK 54 + Expo Router + React Native + NativeWind + Hono 4.7 on Vercel Edge + Turso/libSQL + Drizzle ORM + Clerk + RevenueCat',
+    web:    'React + Vite + TypeScript + Tailwind CSS + shadcn/ui. All content from /src/config/site.ts. Deployed to Cloudflare Pages.'
+  };
+
+  const stackShort = { native: 'Native (CC)', web: 'Web (Lovable)' };
+
+  function selectMode(btn) {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    const lbl = document.getElementById('input-label');
+    lbl.textContent = labels[mode];
+    lbl.className = 'input-label ' + mode;
+    document.getElementById('main-input').placeholder = placeholders[mode];
+  }
+
+  function selectStack(btn) {
+    document.querySelectorAll('.stack-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    stack = btn.dataset.stack;
+  }
+
+  function buildSystem() {
+    const s = stackDesc[stack];
+    if (mode === 'fix') {
+      return `You write surgical Claude Code prompts to fix bugs. Stack: ${s}
+
+The prompt you produce must:
+1. Tell Claude Code to read the relevant files FIRST before touching anything
+2. Describe the exact fix needed — no more, no less
+3. Explicitly list what must not be changed
+4. Include this line: "If you discover anything unexpected while reading the code, stop and report it. Do not attempt fixes beyond the described bug."
+5. End with a binary done-when checklist
+
+Write only the prompt. No explanation. Use the ═══ header style. Plain text ready to paste into Claude Code.`;
+    } else {
+      return `You write focused Claude Code prompts to implement a specific change or new feature. Stack: ${s}
+
+The prompt you produce must:
+1. Tell Claude Code to read the relevant files FIRST before touching anything
+2. Describe exactly what to build or change — no scope creep
+3. Explicitly state which files will be touched and which won't
+4. End with a binary done-when checklist
+
+Write only the prompt. No explanation. Use the ═══ header style. Plain text ready to paste into Claude Code.`;
+    }
+  }
+
+  function copyOutput() {
+    const text = document.getElementById('output-body').textContent;
+    const btn  = document.getElementById('copy-btn');
+    const done = () => {
+      btn.textContent = 'Copied!'; btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 2000);
+    };
+    if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(text).then(done); }
+    else {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta); done();
+    }
+  }
+
+  let ticker;
+
+  async function generate() {
+    const input = document.getElementById('main-input').value.trim();
+    if (!input) { document.getElementById('main-input').focus(); return; }
+
+    document.getElementById('gen-btn').disabled = true;
+    document.getElementById('output-wrap').classList.remove('visible');
+    document.getElementById('loading').classList.add('visible');
+
+    const lines = loadingLines[mode];
+    let i = 0;
+    document.getElementById('loading-text').textContent = lines[0];
+    ticker = setInterval(() => {
+      i = (i + 1) % lines.length;
+      document.getElementById('loading-text').textContent = lines[i];
+    }, 1400);
+
+    try {
+      const res  = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: buildSystem(),
+          messages: [{ role: 'user', content: input }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.find(b => b.type === 'text')?.text || '// No response';
+
+      document.getElementById('output-body').textContent = text;
+      document.getElementById('output-tag').textContent =
+        (mode === 'fix' ? 'Bug Fix' : 'Change') + ' · ' + stackShort[stack];
+      document.getElementById('output-wrap').classList.add('visible');
+
+    } catch (e) {
+      document.getElementById('output-body').textContent = '// Error: ' + e.message;
+      document.getElementById('output-wrap').classList.add('visible');
+    } finally {
+      clearInterval(ticker);
+      document.getElementById('loading').classList.remove('visible');
+      document.getElementById('gen-btn').disabled = false;
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate();
+  });
+</script>
+</body>
+</html>
