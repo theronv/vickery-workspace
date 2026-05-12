@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react'
 
-export type PanelId = 'vet' | 'build' | 'execute' | 'cli' | 'angel' | 'angel-web'
+export type PanelId = string
 
 export interface ActiveProject {
   id?: string
@@ -23,7 +23,7 @@ interface PipelineState {
 const PipelineContext = createContext<PipelineState | null>(null)
 
 export function PipelineProvider({ children }: { children: React.ReactNode }) {
-  const [activePanel, setActivePanel] = useState<PanelId>('vet')
+  const [activePanel, setActivePanel] = useState<string>('vet')
   const [activeProject, setActiveProject] = useState<ActiveProject | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "mkdir -p dist && cp index.html status.json config.example.js story-generator.html angel-team-prompts.html lovable-improver.html exit-gate-panel.html vd-bugfix.html dist/ && ([ -f config.js ] && cp config.js dist/ || true)",
+    "build": "vite build && cp story-generator.html angel-team-prompts.html angel-team-web.html lovable-improver.html exit-gate-panel.html vd-bugfix.html dist/ 2>/dev/null || true",
     "deploy": "npm run build && wrangler pages deploy dist/ --project-name=vickery-workspace --branch=production",
     "preview": "vite preview"
   },
